@@ -55,22 +55,6 @@ body.theme-soft-linen {
   --shadow: 0 18px 46px rgba(63, 46, 29, 0.16);
 }
 
-body.theme-forest-atelier {
-  --bg: #111a17;
-  --bg2: #243129;
-  --panel: rgba(31, 48, 41, 0.90);
-  --panel2: rgba(43, 62, 53, 0.78);
-  --text: #fbfff8;
-  --muted: #c9d7c4;
-  --soft: #edf7e8;
-  --accent: #9fbf8d;
-  --accent2: #5f7f68;
-  --accent3: #d99c65;
-  --border: rgba(185, 218, 174, 0.26);
-  --shadow: 0 18px 45px rgba(0,0,0,0.32);
-}
-
-
 body.theme-ocean-atelier {
   /* Coastal Atelier: sea mist + driftwood, not dark teal tech. */
   --bg: #d8e5e7;
@@ -765,6 +749,79 @@ input[type=range] {
   margin-top: 8px;
 }
 
+/* branding overlay */
+
+.branding-card {
+  width: min(560px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 34px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.branding-card h2 {
+  margin: 0 0 6px;
+  font-family: 'Caveat', cursive;
+  font-size: 34px;
+  color: var(--soft);
+}
+
+.branding-card > p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 16px;
+}
+
+.branding-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.branding-logo-preview {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.14);
+  object-fit: contain;
+  display: none;
+  flex: none;
+}
+
+.branding-logo-preview.visible {
+  display: block;
+}
+
+.branding-check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  margin: 10px 0 6px;
+}
+
+.branding-check-row input[type=checkbox] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  flex: none;
+}
+
+input[type=text] {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: var(--panel2);
+}
+
 @media (max-width: 980px) {
   body { padding: 14px; }
   .creative-layout { grid-template-columns: 1fr; }
@@ -821,6 +878,7 @@ input[type=range] {
     </nav>
     <button class="secondary theme-btn" id="themeBtn" type="button">theme</button>
     <button class="secondary theme-name-pill" id="themeNameBtn" type="button">Coastal Atelier</button>
+    <button class="secondary theme-btn" id="brandingBtn" type="button">🏷️ branding</button>
   </div>
 
   <main class="app-shell">
@@ -828,43 +886,61 @@ input[type=range] {
     <!-- QUICK MODE -->
     <section class="mode-panel" id="quickMode">
 
-      <section class="upload-card" id="quickUploadCard">
-        <input id="quickUploadInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp">
-        <div>
-          <div class="upload-icon">✎</div>
-          <h2>upload your pattern</h2>
-          <p>one pattern · all your mock-ups · ready to download</p>
-        </div>
-      </section>
+      <div class="creative-layout">
 
-      <section class="upload-strip hidden" id="quickUploadStrip">
-        <img id="quickThumb" alt="">
-        <div>
-          <div class="strip-title" id="quickFileName">pattern uploaded</div>
-          <div class="strip-sub">quick mock-ups use one pattern only</div>
-        </div>
-        <button class="secondary" id="quickReplaceBtn" type="button">replace</button>
-      </section>
+        <aside class="collection-panel">
+          <h2>global scale</h2>
+          <p>one slider, every mock-up. resize and nudge your pattern once and all 5 product cards update together — no need to open each preview.</p>
 
-      <section class="action-bar">
-        <div class="action-left">
-          <button id="generateQuickBtn" type="button">✨ generate mock-ups</button>
-        </div>
-        <div class="action-right">
-          <button class="secondary" id="selectAllQuickBtn" type="button">select all</button>
-          <button class="secondary" id="deselectAllQuickBtn" type="button">deselect all</button>
-          <button class="orange" id="downloadQuickBtn" type="button">download selected</button>
-          <span class="count-pill" id="quickSelectedCount">0 selected</span>
-        </div>
-      </section>
+          <label>pattern scale</label>
+          <input id="quickScale" type="range" min="45" max="260" value="80">
+          <label>horizontal position</label>
+          <input id="quickX" type="range" min="-100" max="100" value="0">
+          <label>vertical position</label>
+          <input id="quickY" type="range" min="-100" max="100" value="0">
 
-      <section>
-        <div class="section-title">quick mock-ups</div>
-        <div class="section-note">Simple batch previews. No collection tray, no colour pickers.</div>
+          <button class="secondary" id="resetScaleBtn" type="button" style="width:100%; margin-top:14px;">reset to default</button>
+        </aside>
 
-        <div class="card-grid" id="quickGrid">
+        <section>
 
-          <article class="mock-card" data-product="mug">
+          <section class="upload-card" id="quickUploadCard">
+            <input id="quickUploadInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp">
+            <div>
+              <div class="upload-icon">✎</div>
+              <h2>upload your pattern</h2>
+              <p>one pattern · all your mock-ups · ready to download</p>
+            </div>
+          </section>
+
+          <section class="upload-strip hidden" id="quickUploadStrip">
+            <img id="quickThumb" alt="">
+            <div>
+              <div class="strip-title" id="quickFileName">pattern uploaded</div>
+              <div class="strip-sub">quick mock-ups use one pattern only</div>
+            </div>
+            <button class="secondary" id="quickReplaceBtn" type="button">replace</button>
+          </section>
+
+          <section class="action-bar">
+            <div class="action-left">
+              <button id="generateQuickBtn" type="button">✨ generate mock-ups</button>
+            </div>
+            <div class="action-right">
+              <button class="secondary" id="selectAllQuickBtn" type="button">select all</button>
+              <button class="secondary" id="deselectAllQuickBtn" type="button">deselect all</button>
+              <button class="orange" id="downloadQuickBtn" type="button">download selected</button>
+              <span class="count-pill" id="quickSelectedCount">0 selected</span>
+            </div>
+          </section>
+
+          <section>
+            <div class="section-title">quick mock-ups</div>
+            <div class="section-note">Simple batch previews. No collection tray, no colour pickers.</div>
+
+            <div class="card-grid" id="quickGrid">
+
+              <article class="mock-card" data-product="mug">
             <button class="select-bubble" type="button" aria-label="select mug">✓</button>
             <div class="card-preview">
               <canvas id="mugQuickCanvas" class="quick-canvas hidden"></canvas>
@@ -939,8 +1015,11 @@ input[type=range] {
             </div>
           </article>
 
-        </div>
-      </section>
+            </div>
+          </section>
+
+        </section>
+      </div>
     </section>
 
     <!-- CREATIVE MODE -->
@@ -979,11 +1058,23 @@ input[type=range] {
 
         <section>
           <div class="section-title">creative scenes</div>
-          <div class="section-note">Collection tray and colour controls only appear here.</div>
+          <div class="section-note">Style each scene with a different pattern per zone, then download your whole collection showcase in one go.</div>
+
+          <section class="action-bar">
+            <div class="action-left">
+              <button class="secondary" id="selectAllCreativeBtn" type="button">select all</button>
+              <button class="secondary" id="deselectAllCreativeBtn" type="button">deselect all</button>
+            </div>
+            <div class="action-right">
+              <button class="orange" id="downloadCreativeBtn" type="button">download selected</button>
+              <span class="count-pill" id="creativeSelectedCount">0 selected</span>
+            </div>
+          </section>
 
           <div class="card-grid" id="creativeGrid">
 
             <article class="scene-card" data-scene="onesie">
+              <button class="select-bubble" type="button" aria-label="select onesie set">✓</button>
               <div class="card-preview">
                 <div class="placeholder-art"><span class="big">👶</span>onesie set</div>
               </div>
@@ -997,19 +1088,22 @@ input[type=range] {
             </article>
 
             <article class="scene-card" data-scene="bedding">
+              <button class="select-bubble" type="button" aria-label="select bedding scene">✓</button>
               <div class="card-preview">
-                <div class="placeholder-art"><span class="big">🛏️</span>bedding scene</div>
+                <canvas id="beddingQuickCanvas" class="quick-canvas hidden"></canvas>
+                <div class="placeholder-art" id="beddingPlaceholder"><span class="big">🛏️</span>bedding scene</div>
               </div>
               <div class="card-footer">
                 <div>
                   <h3>bedding scene</h3>
-                  <small>duvet · pillows · bedsheet colour</small>
+                  <small>duvet top · duvet back · pillow, each its own pattern</small>
                 </div>
                 <button class="secondary preview-btn" data-kind="creative" data-name="bedding scene" type="button">style</button>
               </div>
             </article>
 
             <article class="scene-card" data-scene="fabric-stack">
+              <button class="select-bubble" type="button" aria-label="select fabric stack">✓</button>
               <div class="card-preview">
                 <div class="placeholder-art"><span class="big">🧵</span>fabric stack</div>
               </div>
@@ -1048,12 +1142,7 @@ input[type=range] {
 
       <div class="control-group" id="quickControls">
         <h3>quick controls</h3>
-        <label>scale</label>
-        <input id="quickScale" type="range" min="45" max="260" value="80">
-        <label>horizontal position</label>
-        <input id="quickX" type="range" min="-100" max="100" value="0">
-        <label>vertical position</label>
-        <input id="quickY" type="range" min="-100" max="100" value="0">
+        <p style="color:var(--muted); font-size:13px; margin:0;">scale &amp; position now live in the <strong>global scale</strong> panel on the left of the quick mock-ups grid — adjust there and every card updates together.</p>
 
         <div id="notebookSideControls" class="hidden" style="margin-top:14px;">
           <label>notebook side</label>
@@ -1091,14 +1180,90 @@ input[type=range] {
         <input type="color" value="#f8f3ee">
       </div>
 
+      <div class="control-group hidden" id="beddingZoneControls">
+        <h3>collection pattern zones</h3>
+        <p style="color:var(--muted); font-size:12px; margin:0 0 10px;">give each part of the scene its own pattern from your collection tray — just like styling a real duvet, fold and pillow set.</p>
+
+        <label>duvet top</label>
+        <select id="beddingDuvetTopSelect"></select>
+
+        <label>duvet back / fold</label>
+        <select id="beddingDuvetBackSelect"></select>
+
+        <label>pillow</label>
+        <select id="beddingPillowSelect"></select>
+
+        <label>pattern scale</label>
+        <input id="beddingScale" type="range" min="45" max="220" value="100">
+      </div>
+
       <div class="control-group">
         <h3>download</h3>
-        <button type="button" style="width:100%;">download mock-up</button>
+        <button type="button" id="downloadPreviewBtn" style="width:100%;">download mock-up</button>
       </div>
 
       <button class="secondary close-preview" id="closePreviewBtn" type="button">close</button>
     </div>
 
+  </div>
+</aside>
+
+<!-- BRANDING / DIGITAL DOWNLOAD OVERLAY -->
+<aside class="preview-overlay hidden" id="brandingOverlay">
+  <div class="branding-card">
+    <h2>branding &amp; digital download</h2>
+    <p>upload your shop logo and toggle a "digital download" badge — both get stamped onto every mock-up you download, so Etsy shoppers know exactly what they're buying.</p>
+
+    <div class="control-group">
+      <h3>shop logo</h3>
+      <div class="branding-logo-row">
+        <img id="brandingLogoPreview" class="branding-logo-preview" alt="logo preview">
+        <div class="add-pattern-wrap" style="flex:1;">
+          <button class="secondary" type="button" style="width:100%;">upload logo</button>
+          <input id="brandingLogoInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp">
+        </div>
+        <button class="secondary" id="brandingLogoClearBtn" type="button">remove</button>
+      </div>
+
+      <label class="branding-check-row" style="margin-top:14px;">
+        <input type="checkbox" id="brandingLogoToggle">
+        <span>show logo watermark on downloads</span>
+      </label>
+
+      <label>logo position</label>
+      <select id="brandingLogoPosition">
+        <option value="bottom-right">bottom right</option>
+        <option value="bottom-left">bottom left</option>
+        <option value="top-right">top right</option>
+        <option value="top-left">top left</option>
+      </select>
+
+      <label>logo size</label>
+      <input id="brandingLogoSize" type="range" min="8" max="30" value="16">
+      <label>logo opacity</label>
+      <input id="brandingLogoOpacity" type="range" min="20" max="100" value="90">
+    </div>
+
+    <div class="control-group">
+      <h3>digital download badge</h3>
+      <label class="branding-check-row">
+        <input type="checkbox" id="brandingBadgeToggle" checked>
+        <span>show "digital download" badge on downloads</span>
+      </label>
+
+      <label>badge text</label>
+      <input id="brandingBadgeText" type="text" value="DIGITAL DOWNLOAD · INSTANT FILE">
+
+      <label>badge position</label>
+      <select id="brandingBadgePosition">
+        <option value="bottom-center">bottom centre</option>
+        <option value="top-center">top centre</option>
+        <option value="bottom-right">bottom right</option>
+        <option value="bottom-left">bottom left</option>
+      </select>
+    </div>
+
+    <button class="secondary close-preview" id="closeBrandingBtn" type="button">close</button>
   </div>
 </aside>
 
@@ -1112,7 +1277,6 @@ const themePresets = [
   { className: 'theme-ocean-atelier', label: 'Coastal Atelier' },
   { className: 'theme-midnight', label: 'Midnight Studio' },
   { className: 'theme-soft-linen', label: 'Soft Linen' },
-  { className: 'theme-forest-atelier', label: 'Forest Atelier' },
   { className: 'theme-editorial-noir', label: 'Editorial Noir' }
 ];
 let themeIndex = 0;
@@ -1146,6 +1310,157 @@ themeNameBtn?.addEventListener('click', () => {
   applyTheme(themeIndex);
 });
 
+/* ---------- branding / digital download overlay ---------- */
+
+const brandingState = {
+  logoImage: null,
+  showLogo: false,
+  logoPosition: 'bottom-right',
+  logoSize: 16,
+  logoOpacity: 90,
+  showBadge: true,
+  badgeText: 'DIGITAL DOWNLOAD · INSTANT FILE',
+  badgePosition: 'bottom-center'
+};
+
+const brandingBtn = document.getElementById('brandingBtn');
+const brandingOverlay = document.getElementById('brandingOverlay');
+const brandingLogoInput = document.getElementById('brandingLogoInput');
+const brandingLogoPreview = document.getElementById('brandingLogoPreview');
+const brandingLogoToggle = document.getElementById('brandingLogoToggle');
+const brandingLogoPosition = document.getElementById('brandingLogoPosition');
+const brandingLogoSize = document.getElementById('brandingLogoSize');
+const brandingLogoOpacity = document.getElementById('brandingLogoOpacity');
+const brandingLogoClearBtn = document.getElementById('brandingLogoClearBtn');
+const brandingBadgeToggle = document.getElementById('brandingBadgeToggle');
+const brandingBadgeText = document.getElementById('brandingBadgeText');
+const brandingBadgePosition = document.getElementById('brandingBadgePosition');
+
+brandingBtn?.addEventListener('click', () => brandingOverlay.classList.remove('hidden'));
+document.getElementById('closeBrandingBtn')?.addEventListener('click', () => brandingOverlay.classList.add('hidden'));
+
+brandingLogoInput?.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      brandingState.logoImage = img;
+      brandingState.showLogo = true;
+      brandingLogoToggle.checked = true;
+      brandingLogoPreview.src = ev.target.result;
+      brandingLogoPreview.classList.add('visible');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+brandingLogoClearBtn?.addEventListener('click', () => {
+  brandingState.logoImage = null;
+  brandingState.showLogo = false;
+  brandingLogoToggle.checked = false;
+  brandingLogoInput.value = '';
+  brandingLogoPreview.src = '';
+  brandingLogoPreview.classList.remove('visible');
+});
+
+brandingLogoToggle?.addEventListener('change', () => {
+  if (brandingLogoToggle.checked && !brandingState.logoImage) {
+    showToastMessage('upload a logo first');
+    brandingLogoToggle.checked = false;
+    return;
+  }
+  brandingState.showLogo = brandingLogoToggle.checked;
+});
+
+brandingLogoPosition?.addEventListener('change', () => { brandingState.logoPosition = brandingLogoPosition.value; });
+brandingLogoSize?.addEventListener('input', () => { brandingState.logoSize = Number(brandingLogoSize.value); });
+brandingLogoOpacity?.addEventListener('input', () => { brandingState.logoOpacity = Number(brandingLogoOpacity.value); });
+brandingBadgeToggle?.addEventListener('change', () => { brandingState.showBadge = brandingBadgeToggle.checked; });
+brandingBadgeText?.addEventListener('input', () => { brandingState.badgeText = brandingBadgeText.value; });
+brandingBadgePosition?.addEventListener('change', () => { brandingState.badgePosition = brandingBadgePosition.value; });
+
+function drawRoundedRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function applyBrandingOverlay(sourceCanvas) {
+  if (!sourceCanvas || !sourceCanvas.width || !sourceCanvas.height) return sourceCanvas;
+
+  const needsLogo = brandingState.showLogo && brandingState.logoImage;
+  const needsBadge = brandingState.showBadge && brandingState.badgeText.trim();
+  if (!needsLogo && !needsBadge) return sourceCanvas;
+
+  const out = document.createElement('canvas');
+  out.width = sourceCanvas.width;
+  out.height = sourceCanvas.height;
+  const ctx = out.getContext('2d');
+  ctx.drawImage(sourceCanvas, 0, 0);
+
+  const w = out.width;
+  const h = out.height;
+  const margin = Math.round(Math.min(w, h) * 0.035);
+
+  if (needsLogo) {
+    const logo = brandingState.logoImage;
+    const targetW = w * (brandingState.logoSize / 100);
+    const aspect = (logo.naturalHeight || logo.height || 1) / (logo.naturalWidth || logo.width || 1);
+    const targetH = targetW * aspect;
+
+    let x = margin;
+    let y = margin;
+    if (brandingState.logoPosition.includes('right')) x = w - targetW - margin;
+    if (brandingState.logoPosition.includes('bottom')) y = h - targetH - margin;
+
+    ctx.save();
+    ctx.globalAlpha = brandingState.logoOpacity / 100;
+    ctx.drawImage(logo, x, y, targetW, targetH);
+    ctx.restore();
+  }
+
+  if (needsBadge) {
+    const text = brandingState.badgeText.trim().toUpperCase();
+    const fontSize = Math.max(14, Math.round(w * 0.022));
+    ctx.font = `700 ${fontSize}px Quicksand, sans-serif`;
+    const paddingX = fontSize * 0.9;
+    const paddingY = fontSize * 0.55;
+    const textWidth = ctx.measureText(text).width;
+    const pillW = textWidth + paddingX * 2;
+    const pillH = fontSize + paddingY * 2;
+
+    let px = (w - pillW) / 2;
+    let py = h - pillH - margin;
+    if (brandingState.badgePosition === 'top-center') py = margin;
+    if (brandingState.badgePosition === 'bottom-right') px = w - pillW - margin;
+    if (brandingState.badgePosition === 'bottom-left') px = margin;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(15, 18, 28, 0.82)';
+    drawRoundedRectPath(ctx, px, py, pillW, pillH, pillH / 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText(text, px + paddingX, py + pillH / 2);
+    ctx.restore();
+  }
+
+  return out;
+}
 
 let quickPatternImage = null;
 let quickPatternSrc = "";
@@ -1436,6 +1751,7 @@ async function openQuickMugPreview() {
 
 
 let currentPreviewProduct = '';
+let currentPreviewScene = '';
 let notebookSideMode = 'both';
 
 async function renderLayeredProductToCanvas(targetCanvas, config) {
@@ -1844,9 +2160,10 @@ async function openProductPreview(product) {
 
 function downloadCanvasPNG(canvas, filename) {
   if (!canvas) return;
+  const finalCanvas = applyBrandingOverlay(canvas);
   const link = document.createElement('a');
   link.download = filename;
-  link.href = canvas.toDataURL('image/png');
+  link.href = finalCanvas.toDataURL('image/png');
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -1910,33 +2227,248 @@ document.getElementById('quickReplaceBtn').addEventListener('click', () => {
   });
 });
 
+document.getElementById('resetScaleBtn')?.addEventListener('click', () => {
+  const scaleEl = document.getElementById('quickScale');
+  const xEl = document.getElementById('quickX');
+  const yEl = document.getElementById('quickY');
+  if (scaleEl) scaleEl.value = 80;
+  if (xEl) xEl.value = 0;
+  if (yEl) yEl.value = 0;
+  ['mug','notebook','tumbler','floorcushion','applepencil'].forEach(product => {
+    const canvas = document.getElementById(product + 'QuickCanvas');
+    if (quickPatternImage && canvas && !canvas.classList.contains('hidden')) {
+      renderQuickCard(product);
+    }
+  });
+  const largeCanvas = document.getElementById('largePreviewCanvas');
+  if (quickPatternImage && largeCanvas && !largeCanvas.classList.contains('hidden') && currentPreviewProduct) {
+    openProductPreview(currentPreviewProduct);
+  }
+});
+
 const collectionTray = document.getElementById('collectionTray');
-let trayCount = 0;
+let trayPatterns = [];
+let trayIdCounter = 0;
+let activeTrayIndex = 0;
 
 function addTrayPattern(src, role) {
   if (role === 'main') {
-    collectionTray.innerHTML = '';
-    trayCount = 0;
+    trayPatterns = [];
   }
 
-  trayCount++;
-  const item = document.createElement('div');
-  item.className = 'tray-item' + (trayCount === 1 ? ' active' : '');
-  item.innerHTML = `
-    <img class="tray-thumb" src="${src}" alt="">
-    <div>
-      <div class="tray-name">${role === 'main' ? 'main' : 'extra ' + (trayCount - 1)}</div>
-      <div class="tray-role">${role === 'main' ? 'hero pattern' : 'coordinate / blender'}</div>
-    </div>
-  `;
+  trayIdCounter++;
+  const extraCount = trayPatterns.filter(p => p.role !== 'main').length;
+  const entry = {
+    id: trayIdCounter,
+    role,
+    name: role === 'main' ? 'main' : 'extra ' + (extraCount + 1),
+    src,
+    img: null
+  };
+  trayPatterns.push(entry);
+  activeTrayIndex = trayPatterns.length - 1;
 
-  item.addEventListener('click', () => {
-    document.querySelectorAll('.tray-item').forEach(i => i.classList.remove('active'));
-    item.classList.add('active');
+  const img = new Image();
+  img.onload = () => {
+    entry.img = img;
+    renderBeddingCard();
+  };
+  img.src = src;
+
+  renderTrayList();
+  refreshBeddingZoneSelects();
+}
+
+function renderTrayList() {
+  collectionTray.innerHTML = '';
+  trayPatterns.forEach((entry, idx) => {
+    const item = document.createElement('div');
+    item.className = 'tray-item' + (idx === activeTrayIndex ? ' active' : '');
+    item.innerHTML = `
+      <img class="tray-thumb" src="${entry.src}" alt="">
+      <div>
+        <div class="tray-name">${entry.name}</div>
+        <div class="tray-role">${entry.role === 'main' ? 'hero pattern' : 'coordinate / blender'}</div>
+      </div>
+    `;
+
+    item.addEventListener('click', () => {
+      activeTrayIndex = idx;
+      renderTrayList();
+    });
+
+    collectionTray.appendChild(item);
+  });
+}
+
+/* ---------- bedding scene (real photo + duvet/pillow zone masks) ---------- */
+
+let beddingBaseImage = null;
+const beddingMasks = { duvetTop: null, duvetBack: null, pillow: null };
+let beddingAssetsLoadingPromise = null;
+
+function loadBeddingAssets() {
+  if (beddingAssetsLoadingPromise) return beddingAssetsLoadingPromise;
+
+  beddingAssetsLoadingPromise = Promise.all([
+    loadAssetImageFromCandidates([
+      './BedroomCollectionMockup.png',
+      './mockups/BedroomCollectionMockup.png'
+    ], 'bedroom scene base'),
+    loadAssetImageFromCandidates([
+      encodeURI('./Top Duvet .png'),
+      encodeURI('./mockups/Top Duvet .png')
+    ], 'duvet top mask'),
+    loadAssetImageFromCandidates([
+      encodeURI('./Duvet_Back.png'),
+      encodeURI('./mockups/Duvet_Back.png')
+    ], 'duvet back mask'),
+    loadAssetImageFromCandidates([
+      encodeURI('./LeftBackPillow .png'),
+      encodeURI('./mockups/LeftBackPillow .png')
+    ], 'pillow mask')
+  ]).then(([base, duvetTop, duvetBack, pillow]) => {
+    beddingBaseImage = base;
+    beddingMasks.duvetTop = duvetTop;
+    beddingMasks.duvetBack = duvetBack;
+    beddingMasks.pillow = pillow;
+    return { base, masks: beddingMasks };
   });
 
-  collectionTray.appendChild(item);
+  return beddingAssetsLoadingPromise;
 }
+
+function maskedPatternLayer(patternImage, maskImage, w, h, scalePercent) {
+  const tile = createPatternTileCanvas(patternImage, scalePercent);
+  const layer = document.createElement('canvas');
+  layer.width = w;
+  layer.height = h;
+  const lctx = layer.getContext('2d');
+  lctx.imageSmoothingEnabled = true;
+  lctx.imageSmoothingQuality = 'high';
+  drawRepeatedTileLayer(lctx, tile, w, h, 0, 0);
+  lctx.globalCompositeOperation = 'destination-in';
+  lctx.drawImage(maskImage, 0, 0, w, h);
+  lctx.globalCompositeOperation = 'source-over';
+  boostPatternLayerContrast(layer, 1.10, 1.04);
+  return layer;
+}
+
+function getBeddingZoneSelection() {
+  const read = id => {
+    const select = document.getElementById(id);
+    const idx = select ? Number(select.value) : NaN;
+    return trayPatterns[idx] || trayPatterns[0] || null;
+  };
+
+  return {
+    duvetTop: read('beddingDuvetTopSelect'),
+    duvetBack: read('beddingDuvetBackSelect'),
+    pillow: read('beddingPillowSelect')
+  };
+}
+
+async function renderBeddingSceneToCanvas(targetCanvas) {
+  if (!trayPatterns.length || !trayPatterns[0].img) {
+    showToastMessage('upload a pattern to your collection first');
+    return false;
+  }
+
+  const { base, masks } = await loadBeddingAssets();
+  const w = base.naturalWidth || base.width;
+  const h = base.naturalHeight || base.height;
+
+  targetCanvas.width = w;
+  targetCanvas.height = h;
+
+  const ctx = targetCanvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(base, 0, 0, w, h);
+
+  const scalePercent = Number(document.getElementById('beddingScale')?.value || 100);
+  const zoneSelection = getBeddingZoneSelection();
+
+  [
+    { entry: zoneSelection.duvetTop, mask: masks.duvetTop },
+    { entry: zoneSelection.duvetBack, mask: masks.duvetBack },
+    { entry: zoneSelection.pillow, mask: masks.pillow }
+  ].forEach(({ entry, mask }) => {
+    if (!entry || !entry.img || !mask) return;
+
+    const layer = maskedPatternLayer(entry.img, mask, w, h, scalePercent);
+
+    ctx.save();
+    ctx.globalAlpha = 0.94;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(layer, 0, 0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = 0.10;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(layer, 0, 0);
+    ctx.restore();
+  });
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  return true;
+}
+
+async function renderBeddingCard() {
+  if (!trayPatterns.length || !trayPatterns[0].img) return;
+
+  const canvas = document.getElementById('beddingQuickCanvas');
+  const placeholder = document.getElementById('beddingPlaceholder');
+  if (!canvas) return;
+
+  try {
+    const ok = await renderBeddingSceneToCanvas(canvas);
+    if (ok) {
+      canvas.classList.remove('hidden');
+      if (placeholder) placeholder.classList.add('hidden');
+    }
+  } catch (err) {
+    console.error(err);
+    showToastMessage((err && err.message) ? err.message : 'bedding scene assets not found. Put BedroomCollectionMockup.png, "Top Duvet .png", Duvet_Back.png and "LeftBackPillow .png" in the same folder as this HTML, or inside /mockups.');
+  }
+}
+
+function refreshBeddingZoneSelects() {
+  const selectIds = ['beddingDuvetTopSelect', 'beddingDuvetBackSelect', 'beddingPillowSelect'];
+
+  selectIds.forEach((id, zoneIndex) => {
+    const select = document.getElementById(id);
+    if (!select) return;
+
+    const previousValue = select.value;
+    select.innerHTML = '';
+
+    trayPatterns.forEach((entry, idx) => {
+      const option = document.createElement('option');
+      option.value = String(idx);
+      option.textContent = entry.name;
+      select.appendChild(option);
+    });
+
+    if (!trayPatterns.length) return;
+
+    const fallbackIdx = Math.min(zoneIndex, trayPatterns.length - 1);
+    const stillValid = previousValue !== '' && Number(previousValue) < trayPatterns.length;
+    select.value = stillValid ? previousValue : String(fallbackIdx);
+  });
+
+  if (trayPatterns.length) renderBeddingCard();
+}
+
+['beddingDuvetTopSelect', 'beddingDuvetBackSelect', 'beddingPillowSelect', 'beddingScale'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', () => {
+    renderBeddingCard();
+    if (currentPreviewScene === 'bedding scene') openScenePreview('bedding scene');
+  });
+});
 
 const quickCards = document.querySelectorAll('.mock-card');
 const quickCount = document.getElementById('quickSelectedCount');
@@ -1989,6 +2521,58 @@ document.getElementById('downloadQuickBtn').addEventListener('click', async () =
   }
 });
 
+const sceneCards = document.querySelectorAll('.scene-card');
+const creativeCount = document.getElementById('creativeSelectedCount');
+
+function updateCreativeCount() {
+  const count = document.querySelectorAll('.scene-card.selected').length;
+  if (creativeCount) creativeCount.textContent = `${count} selected`;
+}
+
+sceneCards.forEach(card => {
+  const bubble = card.querySelector('.select-bubble');
+  bubble?.addEventListener('click', e => {
+    e.stopPropagation();
+    card.classList.toggle('selected');
+    updateCreativeCount();
+  });
+});
+
+document.getElementById('selectAllCreativeBtn')?.addEventListener('click', () => {
+  sceneCards.forEach(card => card.classList.add('selected'));
+  updateCreativeCount();
+});
+
+document.getElementById('deselectAllCreativeBtn')?.addEventListener('click', () => {
+  sceneCards.forEach(card => card.classList.remove('selected'));
+  updateCreativeCount();
+});
+
+document.getElementById('downloadCreativeBtn')?.addEventListener('click', async () => {
+  const selected = [...document.querySelectorAll('.scene-card.selected')].map(card => card.dataset.scene);
+  if (!selected.length) {
+    alert('select at least one scene to showcase your collection');
+    return;
+  }
+
+  if (selected.includes('bedding')) {
+    if (!trayPatterns.length || !trayPatterns[0].img) {
+      alert('upload a pattern to your collection first');
+    } else {
+      const beddingCanvas = document.getElementById('beddingQuickCanvas');
+      if (beddingCanvas) {
+        if (beddingCanvas.classList.contains('hidden')) await renderBeddingCard();
+        downloadCanvasPNG(beddingCanvas, 'bedding_scene_collection.png');
+      }
+    }
+  }
+
+  const notReady = selected.filter(s => s !== 'bedding');
+  if (notReady.length) {
+    alert('Bedding scene downloads now. ' + notReady.join(', ') + ' scenes are still placeholders.');
+  }
+});
+
 document.getElementById('generateQuickBtn').addEventListener('click', () => {
   if (!quickPatternImage) {
     alert('upload a pattern first');
@@ -2006,8 +2590,36 @@ const previewTitle = document.getElementById('previewTitle');
 const quickControls = document.getElementById('quickControls');
 const creativePatternControls = document.getElementById('creativePatternControls');
 const creativeColorControls = document.getElementById('creativeColorControls');
+const beddingZoneControls = document.getElementById('beddingZoneControls');
 const previewIcon = document.getElementById('previewIcon');
 const previewStageText = document.getElementById('previewStageText');
+
+async function openScenePreview(name) {
+  currentPreviewScene = name;
+  const largeCanvas = document.getElementById('largePreviewCanvas');
+  const placeholder = document.getElementById('previewPlaceholder');
+  if (!largeCanvas) return;
+
+  if (name === 'bedding scene') {
+    try {
+      const ok = await renderBeddingSceneToCanvas(largeCanvas);
+      if (ok) {
+        largeCanvas.classList.remove('hidden');
+        if (placeholder) placeholder.classList.add('hidden');
+      }
+    } catch (err) {
+      console.error(err);
+      largeCanvas.classList.add('hidden');
+      if (placeholder) placeholder.classList.remove('hidden');
+      showToastMessage((err && err.message) ? err.message : 'bedding scene assets not found.');
+    }
+    return;
+  }
+
+  // onesie / fabric-stack: no real renderer/assets yet, stays a placeholder.
+  largeCanvas.classList.add('hidden');
+  if (placeholder) placeholder.classList.remove('hidden');
+}
 
 document.querySelectorAll('.preview-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -2018,9 +2630,12 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
     previewOverlay.classList.remove('hidden');
 
     const creative = kind === 'creative';
+    const bedding = creative && name === 'bedding scene';
+
     quickControls.classList.toggle('hidden', creative);
-    creativePatternControls.classList.toggle('hidden', !creative);
-    creativeColorControls.classList.toggle('hidden', !creative);
+    creativePatternControls.classList.toggle('hidden', !creative || bedding);
+    creativeColorControls.classList.toggle('hidden', !creative || bedding);
+    beddingZoneControls.classList.toggle('hidden', !bedding);
     if (creative) document.getElementById('notebookSideControls')?.classList.add('hidden');
 
     previewIcon.textContent = creative ? '✿' : '✨';
@@ -2036,8 +2651,12 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
     if (!creative) {
       const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : '';
       currentPreviewProduct = product;
+      currentPreviewScene = '';
       document.getElementById('notebookSideControls')?.classList.toggle('hidden', product !== 'notebook');
       if (product) openProductPreview(product);
+    } else {
+      currentPreviewProduct = '';
+      openScenePreview(name);
     }
 
     if (name.includes('bedding')) {
@@ -2083,10 +2702,15 @@ document.querySelectorAll('.notebook-side-btn').forEach(btn => {
   });
 });
 
-document.querySelector('.preview-controls .control-group button')?.addEventListener('click', () => {
+document.getElementById('downloadPreviewBtn')?.addEventListener('click', () => {
   const largeCanvas = document.getElementById('largePreviewCanvas');
   if (largeCanvas && !largeCanvas.classList.contains('hidden')) {
-    downloadCanvasPNG(largeCanvas, (currentPreviewProduct || 'mockup') + '_mockup.png');
+    const filenameBase = currentPreviewScene
+      ? currentPreviewScene.replace(/\s+/g, '_')
+      : (currentPreviewProduct || 'mockup');
+    downloadCanvasPNG(largeCanvas, filenameBase + '_mockup.png');
+  } else if (currentPreviewScene && currentPreviewScene !== 'bedding scene') {
+    alert(currentPreviewScene + ' is still a placeholder scene — bedding scene is the first fully working collection showcase.');
   } else {
     alert('open or render a mock-up first');
   }
