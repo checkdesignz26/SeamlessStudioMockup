@@ -1102,6 +1102,21 @@ input[type=text] {
             </div>
           </article>
 
+          <article class="mock-card" data-product="greetingcard" data-category="stationery">
+            <button class="select-bubble" type="button" aria-label="select greeting card">✓</button>
+            <div class="card-preview">
+              <canvas id="greetingcardQuickCanvas" class="quick-canvas hidden"></canvas>
+              <div class="placeholder-art" id="greetingcardPlaceholder"><span class="big">💌</span>greeting card preview</div>
+            </div>
+            <div class="card-footer">
+              <div>
+                <h3>greeting card mock-up</h3>
+                <small>seamless pattern or single design</small>
+              </div>
+              <button class="secondary preview-btn" data-kind="quick" data-name="greeting card mock-up" type="button">preview</button>
+            </div>
+          </article>
+
             </div>
           </section>
 
@@ -1238,6 +1253,14 @@ input[type=text] {
             <button class="secondary notebook-side-btn active" data-side="both" type="button">both</button>
             <button class="secondary notebook-side-btn" data-side="front" type="button">left</button>
             <button class="secondary notebook-side-btn" data-side="back" type="button">right</button>
+          </div>
+        </div>
+
+        <div id="greetingCardModeControls" class="hidden" style="margin-top:14px;">
+          <label>design layout</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="secondary greeting-card-mode-btn active" data-mode="repeat" type="button">seamless pattern</button>
+            <button class="secondary greeting-card-mode-btn" data-mode="single" type="button">single design (no repeat)</button>
           </div>
         </div>
       </div>
@@ -2145,6 +2168,7 @@ async function openQuickMugPreview() {
 let currentPreviewProduct = '';
 let currentPreviewScene = '';
 let notebookSideMode = 'both';
+let greetingCardMode = 'repeat';
 
 async function renderLayeredProductToCanvas(targetCanvas, config) {
   if (!quickPatternImage) {
@@ -2505,6 +2529,122 @@ async function renderFloorCushionMockupToCanvas(targetCanvas, forcedScalePercent
   });
 }
 
+let greetingCardBaseImage = null;
+let greetingCardMaskImage = null;
+let greetingCardMaskBBox = null;
+
+async function loadGreetingCardAssets() {
+  if (!greetingCardBaseImage) {
+    greetingCardBaseImage = await loadAssetImageFromCandidates([
+      './GreetingCardMockup.png',
+      './mockups/GreetingCardMockup.png'
+    ], 'greeting card base');
+  }
+  if (!greetingCardMaskImage) {
+    greetingCardMaskImage = await loadAssetImageFromCandidates([
+      './GreetingCardMask.png',
+      './mockups/GreetingCardMask.png'
+    ], 'greeting card mask');
+  }
+  return { base: greetingCardBaseImage, mask: greetingCardMaskImage };
+}
+
+// Scans the mask's alpha channel once so a "single design" placement can be
+// centred and contain-fit to the actual printable area, not the whole photo.
+function getMaskOpaqueBoundingBox(maskImage) {
+  const w = maskImage.naturalWidth || maskImage.width;
+  const h = maskImage.naturalHeight || maskImage.height;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(maskImage, 0, 0, w, h);
+  const data = ctx.getImageData(0, 0, w, h).data;
+
+  let minX = w, minY = h, maxX = 0, maxY = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] > 40) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (maxX < minX || maxY < minY) return { x: 0, y: 0, width: w, height: h };
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+async function renderGreetingCardMockupToCanvas(targetCanvas, mode = greetingCardMode, forcedScalePercent = null) {
+  if (!quickPatternImage) {
+    showToastMessage('upload a pattern first');
+    return false;
+  }
+
+  const { base, mask } = await loadGreetingCardAssets();
+  if (!greetingCardMaskBBox) greetingCardMaskBBox = getMaskOpaqueBoundingBox(mask);
+
+  const w = base.naturalWidth || base.width;
+  const h = base.naturalHeight || base.height;
+
+  targetCanvas.width = w;
+  targetCanvas.height = h;
+  const ctx = targetCanvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(base, 0, 0, w, h);
+
+  const patternLayer = document.createElement('canvas');
+  patternLayer.width = w;
+  patternLayer.height = h;
+  const pctx = patternLayer.getContext('2d');
+  pctx.imageSmoothingEnabled = true;
+  pctx.imageSmoothingQuality = 'high';
+
+  if (mode === 'single') {
+    const bbox = greetingCardMaskBBox;
+    const patW = quickPatternImage.naturalWidth || quickPatternImage.width;
+    const patH = quickPatternImage.naturalHeight || quickPatternImage.height;
+    const boxW = bbox.width * 0.86;
+    const boxH = bbox.height * 0.86;
+    const fitScale = Math.min(boxW / patW, boxH / patH);
+    const drawW = patW * fitScale;
+    const drawH = patH * fitScale;
+    const drawX = bbox.x + (bbox.width - drawW) / 2;
+    const drawY = bbox.y + (bbox.height - drawH) / 2;
+    pctx.drawImage(quickPatternImage, drawX, drawY, drawW, drawH);
+  } else {
+    const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('greetingcard');
+    const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
+    drawRepeatedTileLayer(pctx, tile, w, h, 0, 0);
+  }
+
+  pctx.globalCompositeOperation = 'destination-in';
+  pctx.drawImage(mask, 0, 0, w, h);
+  pctx.globalCompositeOperation = 'source-over';
+
+  boostPatternLayerContrast(patternLayer, 1.10, 1.05);
+
+  ctx.save();
+  ctx.globalAlpha = 0.94;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  return true;
+}
+
 async function renderProductToCanvas(product, targetCanvas) {
   window.__currentProductScale = getEffectiveScaleForProduct(product);
 
@@ -2512,6 +2652,7 @@ async function renderProductToCanvas(product, targetCanvas) {
   if (product === 'notebook') return renderNotebookMockupToCanvas(targetCanvas, notebookSideMode, window.__currentProductScale);
   if (product === 'tumbler') return renderTumblerMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'floorcushion') return renderFloorCushionMockupToCanvas(targetCanvas, window.__currentProductScale);
+  if (product === 'greetingcard') return renderGreetingCardMockupToCanvas(targetCanvas, greetingCardMode, window.__currentProductScale);
   if (product === 'applepencil') return renderApplePencilMockupToCanvas(targetCanvas, window.__currentProductScale);
 
   return false;
@@ -2586,7 +2727,7 @@ function setupUpload(inputId, cardId, stripId, thumbId, fileNameId) {
         quickPatternSrc = ev.target.result;
         quickPatternImage = new Image();
         quickPatternImage.onload = () => {
-          ['mug','notebook','tumbler','floorcushion','applepencil'].forEach(product => {
+          ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard'].forEach(product => {
             const canvas = document.getElementById(product + 'QuickCanvas');
             const placeholder = document.getElementById(product + 'Placeholder');
             if (canvas) canvas.classList.add('hidden');
@@ -2614,7 +2755,7 @@ document.getElementById('quickReplaceBtn').addEventListener('click', () => {
   quickPatternSrc = '';
   document.getElementById('quickUploadStrip').classList.add('hidden');
   document.getElementById('quickUploadCard').classList.remove('hidden');
-  ['mug','notebook','tumbler','floorcushion','applepencil'].forEach(product => {
+  ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard'].forEach(product => {
     document.getElementById(product + 'QuickCanvas')?.classList.add('hidden');
     document.getElementById(product + 'Placeholder')?.classList.remove('hidden');
   });
@@ -2627,7 +2768,7 @@ document.getElementById('resetScaleBtn')?.addEventListener('click', () => {
   if (scaleEl) scaleEl.value = 80;
   if (xEl) xEl.value = 0;
   if (yEl) yEl.value = 0;
-  ['mug','notebook','tumbler','floorcushion','applepencil'].forEach(product => {
+  ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard'].forEach(product => {
     const canvas = document.getElementById(product + 'QuickCanvas');
     if (quickPatternImage && canvas && !canvas.classList.contains('hidden')) {
       renderQuickCard(product);
@@ -2921,9 +3062,17 @@ document.getElementById('downloadQuickBtn').addEventListener('click', async () =
     }
   }
 
-  const notReady = selected.filter(p => p !== 'mug');
+  if (selected.includes('greetingcard')) {
+    const gcCanvas = document.getElementById('greetingcardQuickCanvas');
+    if (quickPatternImage && gcCanvas) {
+      if (gcCanvas.classList.contains('hidden')) await renderQuickCard('greetingcard');
+      downloadCanvasPNG(gcCanvas, 'greeting_card_mockup.png');
+    }
+  }
+
+  const notReady = selected.filter(p => p !== 'mug' && p !== 'greetingcard');
   if (notReady.length) {
-    alert('Mug downloads now. ' + notReady.join(', ') + ' engines are still placeholders.');
+    alert('Mug and greeting card download now. ' + notReady.join(', ') + ' engines are still placeholders.');
   }
 });
 
@@ -2989,6 +3138,7 @@ document.getElementById('generateQuickBtn').addEventListener('click', () => {
   renderQuickCard('tumbler');
   renderQuickCard('floorcushion');
   renderQuickCard('applepencil');
+  renderQuickCard('greetingcard');
 });
 
 const previewOverlay = document.getElementById('previewOverlay');
@@ -3044,7 +3194,10 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
     creativePatternControls.classList.toggle('hidden', !creative || bedding);
     creativeColorControls.classList.toggle('hidden', !creative || bedding);
     beddingZoneControls.classList.toggle('hidden', !bedding);
-    if (creative) document.getElementById('notebookSideControls')?.classList.add('hidden');
+    if (creative) {
+      document.getElementById('notebookSideControls')?.classList.add('hidden');
+      document.getElementById('greetingCardModeControls')?.classList.add('hidden');
+    }
 
     previewIcon.textContent = creative ? '✿' : '✨';
     previewStageText.textContent = creative
@@ -3057,10 +3210,11 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
     if (previewPlaceholder) previewPlaceholder.classList.remove('hidden');
 
     if (!creative) {
-      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : '';
+      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : name.includes('greeting card') ? 'greetingcard' : '';
       currentPreviewProduct = product;
       currentPreviewScene = '';
       document.getElementById('notebookSideControls')?.classList.toggle('hidden', product !== 'notebook');
+      document.getElementById('greetingCardModeControls')?.classList.toggle('hidden', product !== 'greetingcard');
       if (product) openProductPreview(product);
     } else {
       currentPreviewProduct = '';
@@ -3085,7 +3239,7 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
   const el = document.getElementById(id);
   if (!el) return;
   el.addEventListener('input', () => {
-    ['mug','notebook','tumbler','floorcushion','applepencil'].forEach(product => {
+    ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard'].forEach(product => {
       const canvas = document.getElementById(product + 'QuickCanvas');
       if (quickPatternImage && canvas && !canvas.classList.contains('hidden')) {
         renderQuickCard(product);
@@ -3106,6 +3260,18 @@ document.querySelectorAll('.notebook-side-btn').forEach(btn => {
     if (currentPreviewProduct === 'notebook') {
       openProductPreview('notebook');
       renderQuickCard('notebook');
+    }
+  });
+});
+
+document.querySelectorAll('.greeting-card-mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.greeting-card-mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    greetingCardMode = btn.dataset.mode || 'repeat';
+    if (currentPreviewProduct === 'greetingcard') {
+      openProductPreview('greetingcard');
+      renderQuickCard('greetingcard');
     }
   });
 });
