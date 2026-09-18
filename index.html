@@ -958,7 +958,6 @@ input[type=text] {
     </nav>
     <button class="secondary theme-btn" id="themeBtn" type="button">theme</button>
     <button class="secondary theme-name-pill" id="themeNameBtn" type="button">Coastal Atelier</button>
-    <button class="secondary theme-btn" id="brandingBtn" type="button">🏷️ branding</button>
   </div>
 
   <main class="app-shell">
@@ -980,6 +979,9 @@ input[type=text] {
           <input id="quickY" type="range" min="-100" max="100" value="0">
 
           <button class="secondary" id="resetScaleBtn" type="button" style="width:100%; margin-top:14px;">reset to default</button>
+
+          <button class="secondary" id="brandingBtn" type="button" style="width:100%; margin-top:22px;">🏷️ branding &amp; badges</button>
+          <p style="color:var(--muted); font-size:12px; margin:8px 0 0;">upload your logo and add digital-download / sale badges — they'll show up right on these mock-ups.</p>
         </aside>
 
         <section>
@@ -1456,7 +1458,7 @@ brandingBtn?.addEventListener('click', () => {
 });
 document.getElementById('closeBrandingBtn')?.addEventListener('click', () => {
   brandingOverlay.classList.add('hidden');
-  refreshBrandingMarkers();
+  syncBranding();
 });
 
 brandingLogoInput?.addEventListener('change', e => {
@@ -1477,7 +1479,7 @@ brandingLogoInput?.addEventListener('change', e => {
       brandingLogoColorRow?.classList.add('hidden');
       brandingLogoPreview.src = ev.target.result;
       brandingLogoPreview.classList.add('visible');
-      refreshBrandingMarkers();
+      syncBranding();
     };
     img.src = ev.target.result;
   };
@@ -1496,7 +1498,7 @@ brandingLogoClearBtn?.addEventListener('click', () => {
   brandingLogoInput.value = '';
   brandingLogoPreview.src = '';
   brandingLogoPreview.classList.remove('visible');
-  refreshBrandingMarkers();
+  syncBranding();
 });
 
 function buildRecoloredImage(sourceImage, hexColor) {
@@ -1539,11 +1541,13 @@ brandingLogoRecolorToggle?.addEventListener('change', async () => {
   brandingState.logoRecolor = brandingLogoRecolorToggle.checked;
   brandingLogoColorRow?.classList.toggle('hidden', !brandingState.logoRecolor);
   await refreshLogoRecolor();
+  syncBranding();
 });
 
 brandingLogoColor?.addEventListener('input', async () => {
   brandingState.logoColor = brandingLogoColor.value;
   if (brandingState.logoRecolor) await refreshLogoRecolor();
+  debouncedSyncBranding();
 });
 
 brandingLogoToggle?.addEventListener('change', () => {
@@ -1553,11 +1557,11 @@ brandingLogoToggle?.addEventListener('change', () => {
     return;
   }
   brandingState.showLogo = brandingLogoToggle.checked;
-  refreshBrandingMarkers();
+  syncBranding();
 });
 
-brandingLogoSize?.addEventListener('input', () => { brandingState.logoSize = Number(brandingLogoSize.value); });
-brandingLogoOpacity?.addEventListener('input', () => { brandingState.logoOpacity = Number(brandingLogoOpacity.value); });
+brandingLogoSize?.addEventListener('input', () => { brandingState.logoSize = Number(brandingLogoSize.value); debouncedSyncBranding(); });
+brandingLogoOpacity?.addEventListener('input', () => { brandingState.logoOpacity = Number(brandingLogoOpacity.value); debouncedSyncBranding(); });
 
 /* ---- badges: dynamic list ---- */
 
@@ -1622,19 +1626,14 @@ badgeListEl?.addEventListener('click', e => {
   if (e.target.classList.contains('badge-remove-btn')) {
     brandingState.badges = brandingState.badges.filter(b => b.id !== badge.id);
     renderBadgeList();
-    refreshBrandingMarkers();
+    syncBranding();
     return;
   }
 
   if (e.target.classList.contains('badge-mode-btn')) {
-    const mode = e.target.dataset.mode;
-    if (mode === 'image' && !badge.image) {
-      showToastMessage('upload an image for this badge first');
-      return;
-    }
-    badge.mode = mode;
+    badge.mode = e.target.dataset.mode;
     renderBadgeList();
-    refreshBrandingMarkers();
+    syncBranding();
   }
 });
 
@@ -1644,7 +1643,7 @@ badgeListEl?.addEventListener('change', e => {
 
   if (e.target.classList.contains('badge-enabled-toggle')) {
     badge.enabled = e.target.checked;
-    refreshBrandingMarkers();
+    syncBranding();
   }
 
   if (e.target.classList.contains('badge-image-input')) {
@@ -1659,7 +1658,7 @@ badgeListEl?.addEventListener('change', e => {
         badge.mode = 'image';
         badge.enabled = true;
         renderBadgeList();
-        refreshBrandingMarkers();
+        syncBranding();
       };
       img.src = ev.target.result;
     };
@@ -1675,7 +1674,7 @@ badgeListEl?.addEventListener('input', e => {
   if (e.target.classList.contains('badge-text-input')) badge.text = e.target.value;
   if (e.target.classList.contains('badge-size-input')) badge.size = Number(e.target.value);
   if (e.target.classList.contains('badge-opacity-input')) badge.opacity = Number(e.target.value);
-  refreshBrandingMarkers();
+  debouncedSyncBranding();
 });
 
 addBadgeBtn?.addEventListener('click', () => {
@@ -1686,7 +1685,7 @@ addBadgeBtn?.addEventListener('click', () => {
   badgeIdCounter++;
   brandingState.badges.push({ id: badgeIdCounter, name: '', enabled: true, mode: 'text', text: 'NEW BADGE', image: null, imageSrc: '', x: 50, y: 50, size: 22, opacity: 100 });
   renderBadgeList();
-  refreshBrandingMarkers();
+  syncBranding();
 });
 
 renderBadgeList();
@@ -1742,6 +1741,8 @@ function createBrandingMarker(label, x, y, onMove) {
       marker.classList.remove('dragging');
       marker.removeEventListener('pointermove', onPointerMove);
       marker.removeEventListener('pointerup', onPointerUp);
+      refreshCurrentPreviewRender();
+      reRenderVisibleQuickCards();
     };
 
     marker.addEventListener('pointermove', onPointerMove);
@@ -1875,6 +1876,60 @@ function applyBrandingOverlay(sourceCanvas) {
   });
 
   return out;
+}
+
+// Bakes the logo/badges directly onto the given canvas (mutates it in place)
+// so mock-up cards and previews show branding live, not just on download.
+function stampBrandingOverlay(canvas) {
+  if (!canvas || !canvas.width || !canvas.height) return;
+  const branded = applyBrandingOverlay(canvas);
+  if (branded === canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(branded, 0, 0);
+}
+
+// Re-renders whatever is currently open in the big preview modal, so a
+// dragged badge/logo bakes into the visible canvas at its new spot.
+function refreshCurrentPreviewRender() {
+  if (currentPreviewProduct) {
+    openProductPreview(currentPreviewProduct);
+  } else if (currentPreviewScene) {
+    openScenePreview(currentPreviewScene);
+  }
+}
+
+// Keeps every already-rendered quick-mode card (and the bedding card) in
+// sync after a branding change, the same way the global scale panel does.
+function reRenderVisibleQuickCards() {
+  ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard'].forEach(product => {
+    const canvas = document.getElementById(product + 'QuickCanvas');
+    if (quickPatternImage && canvas && !canvas.classList.contains('hidden')) {
+      renderQuickCard(product);
+    }
+  });
+  if (trayPatterns.length && trayPatterns[0].img) renderBeddingCard();
+}
+
+// Call after any branding *setting* changes (not from within the render
+// pipeline itself, to avoid re-render loops) so cards and the open preview
+// pick up the change immediately, exactly like the global scale panel does.
+function syncBranding() {
+  refreshBrandingMarkers();
+  refreshCurrentPreviewRender();
+  reRenderVisibleQuickCards();
+}
+
+// For rapid-fire inputs (typing, slider drags) so we don't re-render every
+// canvas on every keystroke/tick — just once things settle for a moment.
+let brandingSyncDebounceTimer = null;
+function debouncedSyncBranding(delay = 220) {
+  refreshBrandingMarkers();
+  clearTimeout(brandingSyncDebounceTimer);
+  brandingSyncDebounceTimer = setTimeout(() => {
+    refreshCurrentPreviewRender();
+    reRenderVisibleQuickCards();
+  }, delay);
 }
 
 let quickPatternImage = null;
@@ -2667,6 +2722,7 @@ async function renderQuickCard(product) {
     await renderProductToCanvas(product, canvas);
     canvas.classList.remove('hidden');
     if (placeholder) placeholder.classList.add('hidden');
+    stampBrandingOverlay(canvas);
   } catch (err) {
     console.error(err);
     showToastMessage((err && err.message) ? err.message : (product + ' assets not found. Put its PNG/JPEG files in the same folder as this HTML, or inside /mockups.'));
@@ -2683,6 +2739,7 @@ async function openProductPreview(product) {
     await renderProductToCanvas(product, largeCanvas);
     largeCanvas.classList.remove('hidden');
     if (placeholder) placeholder.classList.add('hidden');
+    stampBrandingOverlay(largeCanvas);
     refreshBrandingMarkers();
   } catch (err) {
     console.error(err);
@@ -2694,10 +2751,9 @@ async function openProductPreview(product) {
 
 function downloadCanvasPNG(canvas, filename) {
   if (!canvas) return;
-  const finalCanvas = applyBrandingOverlay(canvas);
   const link = document.createElement('a');
   link.download = filename;
-  link.href = finalCanvas.toDataURL('image/png');
+  link.href = canvas.toDataURL('image/png');
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -2963,6 +3019,7 @@ async function renderBeddingCard() {
     if (ok) {
       canvas.classList.remove('hidden');
       if (placeholder) placeholder.classList.add('hidden');
+      stampBrandingOverlay(canvas);
     }
   } catch (err) {
     console.error(err);
@@ -3162,6 +3219,7 @@ async function openScenePreview(name) {
       if (ok) {
         largeCanvas.classList.remove('hidden');
         if (placeholder) placeholder.classList.add('hidden');
+        stampBrandingOverlay(largeCanvas);
         refreshBrandingMarkers();
       }
     } catch (err) {
