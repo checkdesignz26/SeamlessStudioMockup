@@ -813,6 +813,12 @@ input[type=range] {
   flex: none;
 }
 
+.badge-mode-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+  border-color: transparent;
+}
+
 input[type=text] {
   width: 100%;
   padding: 11px 14px;
@@ -1248,11 +1254,37 @@ input[type=text] {
       <h3>digital download badge</h3>
       <label class="branding-check-row">
         <input type="checkbox" id="brandingBadgeToggle" checked>
-        <span>show "digital download" badge on downloads</span>
+        <span>show a "digital download" badge on downloads</span>
       </label>
 
-      <label>badge text</label>
-      <input id="brandingBadgeText" type="text" value="DIGITAL DOWNLOAD · INSTANT FILE">
+      <label>badge style</label>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="secondary badge-mode-btn active" data-mode="text" type="button">generated text badge</button>
+        <button class="secondary badge-mode-btn" data-mode="image" type="button">my own badge image</button>
+      </div>
+
+      <div id="badgeTextFields">
+        <label>badge text</label>
+        <input id="brandingBadgeText" type="text" value="DIGITAL DOWNLOAD · INSTANT FILE">
+      </div>
+
+      <div id="badgeImageFields" class="hidden">
+        <label>upload your badge</label>
+        <div class="branding-logo-row">
+          <img id="brandingBadgeImagePreview" class="branding-logo-preview" alt="badge preview">
+          <div class="add-pattern-wrap" style="flex:1;">
+            <button class="secondary" type="button" style="width:100%;">upload badge image</button>
+            <input id="brandingBadgeImageInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp">
+          </div>
+          <button class="secondary" id="brandingBadgeImageClearBtn" type="button">remove</button>
+        </div>
+        <p style="color:var(--muted); font-size:12px; margin:8px 0 0;">use a PNG with transparency for the cleanest look — your own "digital download" sticker, ribbon or stamp.</p>
+
+        <label>badge image size</label>
+        <input id="brandingBadgeImageSize" type="range" min="8" max="45" value="22">
+        <label>badge image opacity</label>
+        <input id="brandingBadgeImageOpacity" type="range" min="20" max="100" value="100">
+      </div>
 
       <label>badge position</label>
       <select id="brandingBadgePosition">
@@ -1319,8 +1351,12 @@ const brandingState = {
   logoSize: 16,
   logoOpacity: 90,
   showBadge: true,
+  badgeMode: 'text',
   badgeText: 'DIGITAL DOWNLOAD · INSTANT FILE',
-  badgePosition: 'bottom-center'
+  badgePosition: 'bottom-center',
+  badgeImage: null,
+  badgeImageSize: 22,
+  badgeImageOpacity: 100
 };
 
 const brandingBtn = document.getElementById('brandingBtn');
@@ -1335,6 +1371,14 @@ const brandingLogoClearBtn = document.getElementById('brandingLogoClearBtn');
 const brandingBadgeToggle = document.getElementById('brandingBadgeToggle');
 const brandingBadgeText = document.getElementById('brandingBadgeText');
 const brandingBadgePosition = document.getElementById('brandingBadgePosition');
+const badgeTextFields = document.getElementById('badgeTextFields');
+const badgeImageFields = document.getElementById('badgeImageFields');
+const brandingBadgeImageInput = document.getElementById('brandingBadgeImageInput');
+const brandingBadgeImagePreview = document.getElementById('brandingBadgeImagePreview');
+const brandingBadgeImageClearBtn = document.getElementById('brandingBadgeImageClearBtn');
+const brandingBadgeImageSize = document.getElementById('brandingBadgeImageSize');
+const brandingBadgeImageOpacity = document.getElementById('brandingBadgeImageOpacity');
+const badgeModeBtns = document.querySelectorAll('.badge-mode-btn');
 
 brandingBtn?.addEventListener('click', () => brandingOverlay.classList.remove('hidden'));
 document.getElementById('closeBrandingBtn')?.addEventListener('click', () => brandingOverlay.classList.add('hidden'));
@@ -1383,6 +1427,52 @@ brandingBadgeToggle?.addEventListener('change', () => { brandingState.showBadge 
 brandingBadgeText?.addEventListener('input', () => { brandingState.badgeText = brandingBadgeText.value; });
 brandingBadgePosition?.addEventListener('change', () => { brandingState.badgePosition = brandingBadgePosition.value; });
 
+function setBadgeMode(mode) {
+  if (mode === 'image' && !brandingState.badgeImage) {
+    showToastMessage('upload your badge image first');
+    mode = 'text';
+  }
+  brandingState.badgeMode = mode;
+  badgeModeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  badgeTextFields?.classList.toggle('hidden', mode !== 'text');
+  badgeImageFields?.classList.toggle('hidden', mode !== 'image');
+}
+
+badgeModeBtns.forEach(btn => {
+  btn.addEventListener('click', () => setBadgeMode(btn.dataset.mode));
+});
+
+brandingBadgeImageInput?.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      brandingState.badgeImage = img;
+      brandingBadgeImagePreview.src = ev.target.result;
+      brandingBadgeImagePreview.classList.add('visible');
+      brandingState.showBadge = true;
+      brandingBadgeToggle.checked = true;
+      setBadgeMode('image');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+brandingBadgeImageClearBtn?.addEventListener('click', () => {
+  brandingState.badgeImage = null;
+  brandingBadgeImageInput.value = '';
+  brandingBadgeImagePreview.src = '';
+  brandingBadgeImagePreview.classList.remove('visible');
+  setBadgeMode('text');
+});
+
+brandingBadgeImageSize?.addEventListener('input', () => { brandingState.badgeImageSize = Number(brandingBadgeImageSize.value); });
+brandingBadgeImageOpacity?.addEventListener('input', () => { brandingState.badgeImageOpacity = Number(brandingBadgeImageOpacity.value); });
+
 function drawRoundedRectPath(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -1397,11 +1487,28 @@ function drawRoundedRectPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+function resolveBoxPosition(position, w, h, boxW, boxH, margin) {
+  let x = margin;
+  let y = h - boxH - margin;
+
+  if (position === 'top-center') { x = (w - boxW) / 2; y = margin; }
+  else if (position === 'bottom-center') { x = (w - boxW) / 2; y = h - boxH - margin; }
+  else if (position === 'bottom-right') { x = w - boxW - margin; y = h - boxH - margin; }
+  else if (position === 'bottom-left') { x = margin; y = h - boxH - margin; }
+  else if (position === 'top-right') { x = w - boxW - margin; y = margin; }
+  else if (position === 'top-left') { x = margin; y = margin; }
+
+  return { x, y };
+}
+
 function applyBrandingOverlay(sourceCanvas) {
   if (!sourceCanvas || !sourceCanvas.width || !sourceCanvas.height) return sourceCanvas;
 
   const needsLogo = brandingState.showLogo && brandingState.logoImage;
-  const needsBadge = brandingState.showBadge && brandingState.badgeText.trim();
+  const badgeHasContent = brandingState.badgeMode === 'image'
+    ? !!brandingState.badgeImage
+    : !!brandingState.badgeText.trim();
+  const needsBadge = brandingState.showBadge && badgeHasContent;
   if (!needsLogo && !needsBadge) return sourceCanvas;
 
   const out = document.createElement('canvas');
@@ -1431,7 +1538,18 @@ function applyBrandingOverlay(sourceCanvas) {
     ctx.restore();
   }
 
-  if (needsBadge) {
+  if (needsBadge && brandingState.badgeMode === 'image') {
+    const badge = brandingState.badgeImage;
+    const targetW = w * (brandingState.badgeImageSize / 100);
+    const aspect = (badge.naturalHeight || badge.height || 1) / (badge.naturalWidth || badge.width || 1);
+    const targetH = targetW * aspect;
+    const { x, y } = resolveBoxPosition(brandingState.badgePosition, w, h, targetW, targetH, margin);
+
+    ctx.save();
+    ctx.globalAlpha = brandingState.badgeImageOpacity / 100;
+    ctx.drawImage(badge, x, y, targetW, targetH);
+    ctx.restore();
+  } else if (needsBadge) {
     const text = brandingState.badgeText.trim().toUpperCase();
     const fontSize = Math.max(14, Math.round(w * 0.022));
     ctx.font = `700 ${fontSize}px Quicksand, sans-serif`;
@@ -1440,12 +1558,7 @@ function applyBrandingOverlay(sourceCanvas) {
     const textWidth = ctx.measureText(text).width;
     const pillW = textWidth + paddingX * 2;
     const pillH = fontSize + paddingY * 2;
-
-    let px = (w - pillW) / 2;
-    let py = h - pillH - margin;
-    if (brandingState.badgePosition === 'top-center') py = margin;
-    if (brandingState.badgePosition === 'bottom-right') px = w - pillW - margin;
-    if (brandingState.badgePosition === 'bottom-left') px = margin;
+    const { x: px, y: py } = resolveBoxPosition(brandingState.badgePosition, w, h, pillW, pillH, margin);
 
     ctx.save();
     ctx.fillStyle = 'rgba(15, 18, 28, 0.82)';
