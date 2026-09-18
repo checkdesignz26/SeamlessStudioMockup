@@ -1,0 +1,2101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+<title>✿ Mock-up Studio Coastal Atelier ✿</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Quicksand:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #101827;
+  --bg2: #0b1020;
+  --panel: rgba(22, 33, 62, 0.88);
+  --panel2: rgba(30, 42, 74, 0.72);
+  --text: #ffffff;
+  --muted: #c9c4ea;
+  --soft: #e0d9ff;
+  --accent: #8a7aff;
+  --accent2: #6b5fd3;
+  --accent3: #ff8a5b;
+  --border: rgba(138, 122, 255, 0.30);
+  --shadow: 0 18px 45px rgba(0,0,0,0.28);
+  --radius: 32px;
+}
+
+/* Theme experiments: these are meant to feel like studio atmospheres, not loud colour skins. */
+body.theme-midnight {
+  --bg: #101827;
+  --bg2: #0b1020;
+  --panel: rgba(22, 33, 62, 0.90);
+  --panel2: rgba(30, 42, 74, 0.76);
+  --text: #ffffff;
+  --muted: #c9c4ea;
+  --soft: #e0d9ff;
+  --accent: #8a7aff;
+  --accent2: #6b5fd3;
+  --accent3: #ff8a5b;
+  --border: rgba(160, 148, 255, 0.34);
+  --shadow: 0 18px 45px rgba(0,0,0,0.30);
+}
+
+body.theme-soft-linen {
+  --bg: #f7f1e7;
+  --bg2: #e9dcc9;
+  --panel: rgba(255, 252, 245, 0.94);
+  --panel2: rgba(246, 239, 228, 0.96);
+  --text: #2b2530;
+  --muted: #736657;
+  --soft: #342c36;
+  --accent: #8d7b68;
+  --accent2: #5f6f65;
+  --accent3: #b87955;
+  --border: rgba(84, 67, 52, 0.20);
+  --shadow: 0 18px 46px rgba(63, 46, 29, 0.16);
+}
+
+body.theme-forest-atelier {
+  --bg: #111a17;
+  --bg2: #243129;
+  --panel: rgba(31, 48, 41, 0.90);
+  --panel2: rgba(43, 62, 53, 0.78);
+  --text: #fbfff8;
+  --muted: #c9d7c4;
+  --soft: #edf7e8;
+  --accent: #9fbf8d;
+  --accent2: #5f7f68;
+  --accent3: #d99c65;
+  --border: rgba(185, 218, 174, 0.26);
+  --shadow: 0 18px 45px rgba(0,0,0,0.32);
+}
+
+
+body.theme-ocean-atelier {
+  /* Coastal Atelier: sea mist + driftwood, not dark teal tech. */
+  --bg: #d8e5e7;
+  --bg2: #8fb3bb;
+  --panel: rgba(234, 241, 239, 0.90);
+  --panel2: rgba(214, 228, 226, 0.78);
+  --text: #17303b;
+  --muted: #587177;
+  --soft: #203944;
+  --accent: #8dc8c1;
+  --accent2: #4e8494;
+  --accent3: #c99b65;
+  --border: rgba(67, 113, 125, 0.28);
+  --shadow: 0 18px 48px rgba(33, 63, 72, 0.20);
+}
+
+body.theme-ocean-atelier {
+  background:
+    radial-gradient(circle at 18% 8%, rgba(255,255,255,0.62), transparent 34%),
+    radial-gradient(circle at 88% 4%, rgba(164,215,211,0.42), transparent 36%),
+    linear-gradient(135deg, #eef3ee 0%, #d7e6e7 42%, #93b6c0 100%);
+}
+
+body.theme-ocean-atelier .app-header h1 {
+  background: linear-gradient(135deg, #24404a, #4f8793, #a88657);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+body.theme-ocean-atelier .app-shell,
+body.theme-ocean-atelier .preview-panel {
+  background: rgba(232, 241, 239, 0.88);
+  border-color: rgba(71, 118, 130, 0.30);
+  box-shadow: 0 22px 55px rgba(39, 74, 84, 0.18);
+}
+
+body.theme-ocean-atelier .mock-card,
+body.theme-ocean-atelier .scene-card,
+body.theme-ocean-atelier .collection-panel,
+body.theme-ocean-atelier .upload-strip,
+body.theme-ocean-atelier .upload-card {
+  background: rgba(248, 246, 236, 0.62);
+  border-color: rgba(72, 116, 126, 0.30);
+  box-shadow: 0 14px 34px rgba(48, 87, 96, 0.12);
+}
+
+body.theme-ocean-atelier .card-preview,
+body.theme-ocean-atelier .preview-stage {
+  background:
+    radial-gradient(circle at 28% 15%, rgba(255,255,255,0.56), transparent 35%),
+    linear-gradient(135deg, rgba(238, 244, 241, 0.86), rgba(184, 212, 214, 0.50));
+  border-color: rgba(64, 109, 121, 0.22);
+}
+
+body.theme-ocean-atelier .action-bar,
+body.theme-ocean-atelier .preview-controls,
+body.theme-ocean-atelier .control-group,
+body.theme-ocean-atelier .tray-item {
+  background: rgba(244, 239, 225, 0.42);
+  border-color: rgba(73, 114, 124, 0.24);
+}
+
+body.theme-ocean-atelier button,
+body.theme-ocean-atelier .mode-btn.active,
+body.theme-ocean-atelier .notebook-side-btn.active {
+  background: linear-gradient(135deg, #9bd1ca, #5f9bab);
+  color: #17303b;
+}
+
+body.theme-ocean-atelier button.secondary {
+  background: rgba(255,255,255,0.38);
+  color: #203944;
+  border-color: rgba(67, 113, 125, 0.28);
+}
+
+body.theme-ocean-atelier button.orange {
+  background: linear-gradient(135deg, #d7b07a, #c9915e);
+  color: #17303b;
+}
+
+body.theme-ocean-atelier .select-bubble {
+  background: rgba(32, 57, 68, 0.52);
+  color: #ffffff;
+}
+
+body.theme-editorial-noir {
+  --bg: #0e0f12;
+  --bg2: #1c1d22;
+  --panel: rgba(28, 30, 36, 0.92);
+  --panel2: rgba(39, 42, 50, 0.78);
+  --text: #f8f7f4;
+  --muted: #c7c4bd;
+  --soft: #f1eee7;
+  --accent: #b7b4aa;
+  --accent2: #74706a;
+  --accent3: #c58b5a;
+  --border: rgba(230, 226, 214, 0.22);
+  --shadow: 0 20px 54px rgba(0,0,0,0.42);
+}
+
+body.theme-soft-linen .select-bubble {
+  background: rgba(48, 38, 29, 0.46);
+}
+
+body.theme-soft-linen .card-preview,
+body.theme-soft-linen .preview-stage {
+  background:
+    radial-gradient(circle at center, rgba(255,255,255,0.60), transparent 54%),
+    rgba(92,74,55,0.10);
+  border-color: rgba(75, 58, 39, 0.18);
+}
+
+body.theme-soft-linen .action-bar,
+body.theme-soft-linen .preview-controls,
+body.theme-soft-linen .control-group,
+body.theme-soft-linen .tray-item {
+  background: rgba(96, 75, 50, 0.08);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 20px;
+  color: var(--text);
+  font-family: 'Quicksand', system-ui, sans-serif;
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 22%, transparent), transparent 34%),
+    linear-gradient(135deg, var(--bg), var(--bg2));
+}
+
+button, input, select {
+  font-family: 'Quicksand', system-ui, sans-serif;
+}
+
+button {
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 17px;
+  font-weight: 700;
+  cursor: pointer;
+  color: white;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  box-shadow: 0 8px 22px rgba(0,0,0,0.18);
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.secondary {
+  background: rgba(138,122,255,0.14);
+  color: var(--soft);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+button.orange {
+  background: var(--accent3);
+}
+
+button:active { transform: scale(0.98); }
+
+.hidden { display: none !important; }
+
+.app-wrap {
+  width: min(1400px, 100%);
+  margin: 0 auto;
+}
+
+/* header */
+
+.app-header {
+  text-align: center;
+  margin: 8px 0 18px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-family: 'Caveat', cursive;
+  font-size: clamp(48px, 8vw, 76px);
+  line-height: 0.95;
+  background: linear-gradient(135deg, var(--soft), var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.app-header p {
+  margin: 8px auto 0;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+/* top controls */
+
+.top-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.mode-switch {
+  display: inline-flex;
+  gap: 8px;
+  padding: 7px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.mode-btn {
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  border: 1px solid transparent;
+}
+
+.mode-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+  border-color: rgba(255,255,255,0.12);
+}
+
+.theme-btn {
+  min-width: 112px;
+}
+
+.theme-name-pill {
+  min-width: 170px;
+  text-align: center;
+  color: var(--soft);
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  box-shadow: none;
+}
+
+/* shell */
+
+.app-shell {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+  min-height: 72vh;
+}
+
+.mode-panel {
+  display: grid;
+  gap: 18px;
+}
+
+/* upload */
+
+.upload-card {
+  position: relative;
+  border: 2px dashed var(--border);
+  border-radius: 28px;
+  padding: 24px;
+  min-height: 170px;
+  background: var(--panel2);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  overflow: hidden;
+}
+
+.upload-card input[type=file] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-icon {
+  font-size: 42px;
+  margin-bottom: 6px;
+  animation: float 3s infinite ease-in-out;
+}
+
+@keyframes float {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.upload-card h2 {
+  margin: 0;
+  font-family: 'Caveat', cursive;
+  font-size: 36px;
+  color: var(--soft);
+}
+
+.upload-card p {
+  margin: 7px 0 0;
+  color: var(--muted);
+}
+
+.upload-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 24px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+}
+
+.upload-strip img {
+  width: 76px;
+  height: 76px;
+  object-fit: cover;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+}
+
+.strip-title {
+  font-weight: 800;
+  color: var(--soft);
+}
+
+.strip-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+/* action bar */
+
+.action-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 14px;
+  border-radius: 24px;
+  background: rgba(0,0,0,0.12);
+  border: 1px solid var(--border);
+}
+
+.action-left,
+.action-right {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.count-pill {
+  color: var(--muted);
+  font-weight: 700;
+  padding: 8px 10px;
+}
+
+/* cards */
+
+.section-title {
+  font-family: 'Caveat', cursive;
+  font-size: 34px;
+  color: var(--soft);
+  margin: 2px 0 4px;
+}
+
+.section-note {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.mock-card,
+.scene-card {
+  position: relative;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: 14px;
+  min-height: 270px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.mock-card.selected,
+.scene-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(138,122,255,0.22), var(--shadow);
+}
+
+.mock-card:hover,
+.scene-card:hover {
+  transform: translateY(-2px);
+}
+
+.select-bubble {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,0.36);
+  border: 1px solid rgba(255,255,255,0.22);
+  z-index: 3;
+}
+
+.card-preview {
+  flex: 1;
+  min-height: 178px;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at center, rgba(255,255,255,0.08), transparent 54%),
+    rgba(0,0,0,0.20);
+  border: 1px solid rgba(255,255,255,0.08);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.card-preview canvas,
+.card-preview img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.placeholder-art {
+  text-align: center;
+  color: var(--muted);
+  padding: 18px;
+}
+
+.placeholder-art .big {
+  display: block;
+  font-size: 42px;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.card-footer h3 {
+  margin: 0;
+  font-size: 17px;
+  text-transform: lowercase;
+  color: var(--soft);
+}
+
+.card-footer small {
+  display: block;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* creative */
+
+.creative-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 18px;
+}
+
+.collection-panel {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: 16px;
+  align-self: start;
+}
+
+.collection-panel h2 {
+  margin: 0 0 5px;
+  font-family: 'Caveat', cursive;
+  font-size: 34px;
+  color: var(--soft);
+}
+
+.collection-panel p {
+  color: var(--muted);
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+
+.tray-grid {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.tray-item {
+  display: grid;
+  grid-template-columns: 62px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 18px;
+  background: rgba(0,0,0,0.16);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.tray-item.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(138,122,255,0.16);
+}
+
+.tray-thumb {
+  width: 62px;
+  height: 62px;
+  object-fit: cover;
+  border-radius: 14px;
+  background: rgba(0,0,0,0.22);
+  border: 1px solid var(--border);
+}
+
+.tray-name {
+  font-weight: 800;
+  color: var(--soft);
+}
+
+.tray-role {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.add-pattern-wrap {
+  position: relative;
+}
+
+.add-pattern-wrap input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+
+.quick-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  background: rgba(0,0,0,0.18);
+}
+
+.preview-stage canvas {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+  object-fit: contain;
+  border-radius: 22px;
+}
+
+
+.notebook-side-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+}
+
+/* overlay */
+
+.preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(5, 8, 18, 0.78);
+  backdrop-filter: blur(12px);
+  padding: 22px;
+  display: grid;
+  place-items: center;
+}
+
+.preview-panel {
+  width: min(1180px, 100%);
+  max-height: 92vh;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) 360px;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 34px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.preview-stage {
+  min-height: 560px;
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at center, rgba(255,255,255,0.08), transparent 52%),
+    rgba(0,0,0,0.22);
+  border: 1px solid rgba(255,255,255,0.08);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.preview-placeholder {
+  text-align: center;
+  color: var(--muted);
+}
+
+.preview-placeholder .big {
+  font-size: 62px;
+  display: block;
+}
+
+.preview-controls {
+  border-radius: 26px;
+  padding: 16px;
+  background: rgba(0,0,0,0.12);
+  border: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.preview-controls h2 {
+  margin: 0 0 10px;
+  font-family: 'Caveat', cursive;
+  font-size: 34px;
+  color: var(--soft);
+}
+
+.control-group {
+  margin: 14px 0;
+  padding: 12px;
+  border-radius: 20px;
+  background: rgba(0,0,0,0.12);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.control-group h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--soft);
+  text-transform: lowercase;
+}
+
+label {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  margin: 10px 0 6px;
+}
+
+select,
+input[type=range] {
+  width: 100%;
+}
+
+select {
+  padding: 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: var(--panel2);
+}
+
+input[type=color] {
+  width: 100%;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  padding: 3px;
+}
+
+input[type=range] {
+  accent-color: var(--accent);
+}
+
+.close-preview {
+  width: 100%;
+  margin-top: 8px;
+}
+
+@media (max-width: 980px) {
+  body { padding: 14px; }
+  .creative-layout { grid-template-columns: 1fr; }
+  .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .preview-panel { grid-template-columns: 1fr; overflow-y: auto; }
+  .preview-stage { min-height: 420px; }
+}
+
+@media (max-width: 620px) {
+  .card-grid { grid-template-columns: 1fr; }
+  .action-bar { align-items: stretch; }
+  .action-left, .action-right { width: 100%; }
+  .action-left button, .action-right button { flex: 1; }
+}
+</style>
+<!-- Flash mop fix: Apple Pencil now renders into its product card, not only the preview modal. -->
+
+<style>
+/* Flash mop: Apple Pencil card is allowed to breathe.
+   Keep other party guests unchanged. */
+.mock-card[data-product="applepencil"] .card-preview {
+  background: rgba(0,0,0,0.16);
+}
+
+.mock-card[data-product="applepencil"] .card-preview canvas {
+  object-fit: contain !important;
+  background: rgba(0,0,0,0.10);
+  padding: 6px;
+}
+
+/* Avoid the Apple Pencil card feeling oversized in the grid. */
+.mock-card[data-product="applepencil"] .card-preview {
+  min-height: 178px;
+}
+</style>
+
+<!-- Flash mop fix: Apple Pencil card less cropped + default slider scale no longer makes all products ditsy. -->
+</head>
+
+<!-- Flash mop: mug + notebook + tumbler + floor cushion party guests -->
+<!-- Flash mop: Apple Pencil officially joins the Mock-up Studio party guests ✏️🎉 -->
+<body class="theme-ocean-atelier">
+<div class="app-wrap">
+
+  <header class="app-header">
+    <h1>✿ Mock-up Studio ✿</h1>
+    <p>turn your pattern collection into Etsy-ready mock-ups</p>
+  </header>
+
+  <div class="top-controls">
+    <nav class="mode-switch" aria-label="mode switch">
+      <button class="mode-btn active" data-mode="quick" type="button">quick mock-ups</button>
+      <button class="mode-btn" data-mode="creative" type="button">creative scenes</button>
+    </nav>
+    <button class="secondary theme-btn" id="themeBtn" type="button">theme</button>
+    <button class="secondary theme-name-pill" id="themeNameBtn" type="button">Coastal Atelier</button>
+  </div>
+
+  <main class="app-shell">
+
+    <!-- QUICK MODE -->
+    <section class="mode-panel" id="quickMode">
+
+      <section class="upload-card" id="quickUploadCard">
+        <input id="quickUploadInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp">
+        <div>
+          <div class="upload-icon">✎</div>
+          <h2>upload your pattern</h2>
+          <p>one pattern · all your mock-ups · ready to download</p>
+        </div>
+      </section>
+
+      <section class="upload-strip hidden" id="quickUploadStrip">
+        <img id="quickThumb" alt="">
+        <div>
+          <div class="strip-title" id="quickFileName">pattern uploaded</div>
+          <div class="strip-sub">quick mock-ups use one pattern only</div>
+        </div>
+        <button class="secondary" id="quickReplaceBtn" type="button">replace</button>
+      </section>
+
+      <section class="action-bar">
+        <div class="action-left">
+          <button id="generateQuickBtn" type="button">✨ generate mock-ups</button>
+        </div>
+        <div class="action-right">
+          <button class="secondary" id="selectAllQuickBtn" type="button">select all</button>
+          <button class="secondary" id="deselectAllQuickBtn" type="button">deselect all</button>
+          <button class="orange" id="downloadQuickBtn" type="button">download selected</button>
+          <span class="count-pill" id="quickSelectedCount">0 selected</span>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-title">quick mock-ups</div>
+        <div class="section-note">Simple batch previews. No collection tray, no colour pickers.</div>
+
+        <div class="card-grid" id="quickGrid">
+
+          <article class="mock-card" data-product="mug">
+            <button class="select-bubble" type="button" aria-label="select mug">✓</button>
+            <div class="card-preview">
+              <canvas id="mugQuickCanvas" class="quick-canvas hidden"></canvas>
+              <div class="placeholder-art" id="mugPlaceholder"><span class="big">☕</span>mug preview</div>
+            </div>
+            <div class="card-footer">
+              <div>
+                <h3>mug mock-up</h3>
+                <small>repeating pattern + ceramic blend</small>
+              </div>
+              <button class="secondary preview-btn" data-kind="quick" data-name="mug mock-up" type="button">preview</button>
+            </div>
+          </article>
+
+          <article class="mock-card" data-product="notebook">
+            <button class="select-bubble" type="button" aria-label="select notebook">✓</button>
+            <div class="card-preview">
+              <canvas id="notebookQuickCanvas" class="quick-canvas hidden"></canvas>
+              <div class="placeholder-art" id="notebookPlaceholder"><span class="big">📓</span>notebook preview</div>
+            </div>
+            <div class="card-footer">
+              <div>
+                <h3>notebook mock-up</h3>
+                <small>left · right · both</small>
+              </div>
+              <button class="secondary preview-btn" data-kind="quick" data-name="notebook mock-up" type="button">preview</button>
+            </div>
+          </article>
+
+          <article class="mock-card" data-product="tumbler">
+            <button class="select-bubble" type="button" aria-label="select tumbler">✓</button>
+            <div class="card-preview">
+              <canvas id="tumblerQuickCanvas" class="quick-canvas hidden"></canvas>
+              <div class="placeholder-art" id="tumblerPlaceholder"><span class="big">🥤</span>tumbler preview</div>
+            </div>
+            <div class="card-footer">
+              <div>
+                <h3>tumbler mock-up</h3>
+                <small>wrap mask</small>
+              </div>
+              <button class="secondary preview-btn" data-kind="quick" data-name="tumbler mock-up" type="button">preview</button>
+            </div>
+          </article>
+
+          <article class="mock-card" data-product="floorcushion">
+            <button class="select-bubble" type="button" aria-label="select floor cushion">✓</button>
+            <div class="card-preview">
+              <canvas id="floorcushionQuickCanvas" class="quick-canvas hidden"></canvas>
+              <div class="placeholder-art" id="floorcushionPlaceholder"><span class="big">🛋️</span>floor cushion preview</div>
+            </div>
+            <div class="card-footer">
+              <div>
+                <h3>floor cushion mock-up</h3>
+                <small>soft fabric + folds</small>
+              </div>
+              <button class="secondary preview-btn" data-kind="quick" data-name="floor cushion mock-up" type="button">preview</button>
+            </div>
+          </article>
+
+          <article class="mock-card" data-product="applepencil">
+            <button class="select-bubble" type="button" aria-label="select apple pencil">✓</button>
+            <div class="card-preview">
+              <canvas id="applepencilQuickCanvas" class="quick-canvas hidden"></canvas>
+              <div class="placeholder-art" id="applepencilPlaceholder"><span class="big">✏️</span>apple pencil preview</div>
+            </div>
+            <div class="card-footer">
+              <div>
+                <h3>apple pencil mock-up</h3>
+                <small>creative desk accessory</small>
+              </div>
+              <button class="secondary preview-btn" data-kind="quick" data-name="apple pencil mock-up" type="button">preview</button>
+            </div>
+          </article>
+
+        </div>
+      </section>
+    </section>
+
+    <!-- CREATIVE MODE -->
+    <section class="mode-panel hidden" id="creativeMode">
+
+      <section class="creative-layout">
+
+        <aside class="collection-panel">
+          <h2>your collection</h2>
+          <p>creative scenes use multiple patterns: main, coordinate, blender, stripe, mini scale.</p>
+
+          <section class="upload-card" id="creativeUploadCard" style="min-height:130px; padding:18px;">
+            <input id="creativeUploadInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp">
+            <div>
+              <div class="upload-icon" style="font-size:34px;">✿</div>
+              <h2 style="font-size:30px;">upload main</h2>
+              <p>start your collection tray</p>
+            </div>
+          </section>
+
+          <div class="tray-grid" id="collectionTray">
+            <div class="tray-item active">
+              <div class="tray-thumb" style="display:grid; place-items:center;">✿</div>
+              <div>
+                <div class="tray-name">main</div>
+                <div class="tray-role">upload a pattern</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="add-pattern-wrap">
+            <button class="secondary" type="button" style="width:100%;">+ add pattern</button>
+            <input id="addPatternInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp">
+          </div>
+        </aside>
+
+        <section>
+          <div class="section-title">creative scenes</div>
+          <div class="section-note">Collection tray and colour controls only appear here.</div>
+
+          <div class="card-grid" id="creativeGrid">
+
+            <article class="scene-card" data-scene="onesie">
+              <div class="card-preview">
+                <div class="placeholder-art"><span class="big">👶</span>onesie set</div>
+              </div>
+              <div class="card-footer">
+                <div>
+                  <h3>onesie set</h3>
+                  <small>piping · socks · deco colours</small>
+                </div>
+                <button class="secondary preview-btn" data-kind="creative" data-name="onesie set" type="button">style</button>
+              </div>
+            </article>
+
+            <article class="scene-card" data-scene="bedding">
+              <div class="card-preview">
+                <div class="placeholder-art"><span class="big">🛏️</span>bedding scene</div>
+              </div>
+              <div class="card-footer">
+                <div>
+                  <h3>bedding scene</h3>
+                  <small>duvet · pillows · bedsheet colour</small>
+                </div>
+                <button class="secondary preview-btn" data-kind="creative" data-name="bedding scene" type="button">style</button>
+              </div>
+            </article>
+
+            <article class="scene-card" data-scene="fabric-stack">
+              <div class="card-preview">
+                <div class="placeholder-art"><span class="big">🧵</span>fabric stack</div>
+              </div>
+              <div class="card-footer">
+                <div>
+                  <h3>fabric stack</h3>
+                  <small>main · coordinate · blender</small>
+                </div>
+                <button class="secondary preview-btn" data-kind="creative" data-name="fabric stack" type="button">style</button>
+              </div>
+            </article>
+
+          </div>
+        </section>
+
+      </section>
+    </section>
+
+  </main>
+</div>
+
+<!-- SHARED PREVIEW / STYLE PANEL -->
+<aside class="preview-overlay hidden" id="previewOverlay">
+  <div class="preview-panel">
+
+    <div class="preview-stage">
+      <canvas id="largePreviewCanvas" class="hidden"></canvas>
+      <div class="preview-placeholder" id="previewPlaceholder">
+        <span class="big" id="previewIcon">✿</span>
+        <div id="previewStageText">preview will render here</div>
+      </div>
+    </div>
+
+    <div class="preview-controls">
+      <h2 id="previewTitle">preview</h2>
+
+      <div class="control-group" id="quickControls">
+        <h3>quick controls</h3>
+        <label>scale</label>
+        <input id="quickScale" type="range" min="45" max="260" value="80">
+        <label>horizontal position</label>
+        <input id="quickX" type="range" min="-100" max="100" value="0">
+        <label>vertical position</label>
+        <input id="quickY" type="range" min="-100" max="100" value="0">
+
+        <div id="notebookSideControls" class="hidden" style="margin-top:14px;">
+          <label>notebook side</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="secondary notebook-side-btn active" data-side="both" type="button">both</button>
+            <button class="secondary notebook-side-btn" data-side="front" type="button">left</button>
+            <button class="secondary notebook-side-btn" data-side="back" type="button">right</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-group hidden" id="creativePatternControls">
+        <h3>pattern zones</h3>
+        <label>main fabric</label>
+        <select id="mainPatternSelect">
+          <option>main</option>
+          <option>coordinate</option>
+          <option>blender</option>
+        </select>
+        <label>secondary fabric</label>
+        <select id="secondaryPatternSelect">
+          <option>coordinate</option>
+          <option>main</option>
+          <option>blender</option>
+        </select>
+      </div>
+
+      <div class="control-group hidden" id="creativeColorControls">
+        <h3>colour zones</h3>
+        <label id="colourLabel1">piping colour</label>
+        <input type="color" value="#f3d7e7">
+        <label id="colourLabel2">sock / sheet colour</label>
+        <input type="color" value="#ffffff">
+        <label>background colour</label>
+        <input type="color" value="#f8f3ee">
+      </div>
+
+      <div class="control-group">
+        <h3>download</h3>
+        <button type="button" style="width:100%;">download mock-up</button>
+      </div>
+
+      <button class="secondary close-preview" id="closePreviewBtn" type="button">close</button>
+    </div>
+
+  </div>
+</aside>
+
+<script>
+const quickMode = document.getElementById('quickMode');
+const creativeMode = document.getElementById('creativeMode');
+const modeBtns = document.querySelectorAll('.mode-btn');
+const themeBtn = document.getElementById('themeBtn');
+
+const themePresets = [
+  { className: 'theme-ocean-atelier', label: 'Coastal Atelier' },
+  { className: 'theme-midnight', label: 'Midnight Studio' },
+  { className: 'theme-soft-linen', label: 'Soft Linen' },
+  { className: 'theme-forest-atelier', label: 'Forest Atelier' },
+  { className: 'theme-editorial-noir', label: 'Editorial Noir' }
+];
+let themeIndex = 0;
+const themeNameBtn = document.getElementById('themeNameBtn');
+function applyTheme(index) {
+  themePresets.forEach(t => document.body.classList.remove(t.className));
+  const theme = themePresets[index];
+  document.body.classList.add(theme.className);
+  if (themeNameBtn) themeNameBtn.textContent = theme.label;
+}
+applyTheme(themeIndex);
+
+modeBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    modeBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const mode = btn.dataset.mode;
+    quickMode.classList.toggle('hidden', mode !== 'quick');
+    creativeMode.classList.toggle('hidden', mode !== 'creative');
+  });
+});
+
+themeBtn.addEventListener('click', () => {
+  themeIndex = (themeIndex + 1) % themePresets.length;
+  applyTheme(themeIndex);
+});
+
+themeNameBtn?.addEventListener('click', () => {
+  themeIndex = (themeIndex + 1) % themePresets.length;
+  applyTheme(themeIndex);
+});
+
+
+let quickPatternImage = null;
+let quickPatternSrc = "";
+let lastMugRenderCanvas = null;
+
+function showToastMessage(message) {
+  alert(message);
+}
+
+function loadAssetImageFromCandidates(paths, label = 'asset') {
+  return new Promise((resolve, reject) => {
+    let index = 0;
+    const tried = [];
+
+    function tryNext() {
+      if (index >= paths.length) {
+        reject(new Error(label + ' not found. Tried: ' + tried.join(' | ')));
+        return;
+      }
+
+      const nextPath = paths[index++];
+      tried.push(nextPath);
+
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload = () => resolve(img);
+      img.onerror = tryNext;
+      img.src = nextPath;
+    }
+
+    tryNext();
+  });
+}
+
+function createPatternTileCanvas(sourceImage, scalePercent = 100) {
+  const scale = Math.max(0.18, Math.min(3.2, Number(scalePercent || 100) / 100));
+  const tile = document.createElement('canvas');
+
+  // Smaller base tile = visible repeat on product mock-ups.
+  // This avoids the "single sticker strip" look when users upload large 3600px pattern tiles.
+  const baseTileSize = 210;
+  const sourceW = sourceImage.naturalWidth || sourceImage.width || 1200;
+  const sourceH = sourceImage.naturalHeight || sourceImage.height || 1200;
+  const aspect = sourceH / Math.max(1, sourceW);
+
+  tile.width = Math.max(70, Math.round(baseTileSize * scale));
+  tile.height = Math.max(70, Math.round(baseTileSize * aspect * scale));
+
+  const tctx = tile.getContext('2d');
+  tctx.imageSmoothingEnabled = true;
+  tctx.imageSmoothingQuality = 'high';
+  tctx.clearRect(0, 0, tile.width, tile.height);
+  tctx.drawImage(sourceImage, 0, 0, tile.width, tile.height);
+
+  return tile;
+}
+
+function drawRepeatedTileLayer(ctx, tile, canvasW, canvasH, offsetXPx = 0, offsetYPx = 0) {
+  if (!tile || !tile.width || !tile.height) return;
+
+  const startX = -tile.width * 2 + ((offsetXPx % tile.width) + tile.width) % tile.width;
+  const startY = -tile.height * 2 + ((offsetYPx % tile.height) + tile.height) % tile.height;
+
+  for (let y = startY; y < canvasH + tile.height * 2; y += tile.height) {
+    for (let x = startX; x < canvasW + tile.width * 2; x += tile.width) {
+      ctx.drawImage(tile, x, y, tile.width, tile.height);
+    }
+  }
+}
+
+
+function createAlphaMaskFromBlackWhiteMask(maskImage, width, height) {
+  const maskCanvas = document.createElement('canvas');
+  maskCanvas.width = width;
+  maskCanvas.height = height;
+
+  const mctx = maskCanvas.getContext('2d');
+  mctx.clearRect(0, 0, width, height);
+  mctx.drawImage(maskImage, 0, 0, width, height);
+
+  const imageData = mctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+
+    // White = visible pattern. Black = transparent.
+    const brightness = (r + g + b) / 3;
+    const alpha = brightness > 10 ? Math.min(255, Math.max(0, (brightness - 10) * 1.08)) : 0;
+
+    data[i] = 255;
+    data[i + 1] = 255;
+    data[i + 2] = 255;
+    data[i + 3] = alpha;
+  }
+
+  mctx.putImageData(imageData, 0, 0);
+  return maskCanvas;
+}
+
+
+function boostPatternLayerContrast(layerCanvas, amount = 1.18, saturation = 1.08) {
+  const ctx = layerCanvas.getContext('2d');
+  const imageData = ctx.getImageData(0, 0, layerCanvas.width, layerCanvas.height);
+  const d = imageData.data;
+
+  for (let i = 0; i < d.length; i += 4) {
+    const a = d[i + 3];
+    if (a === 0) continue;
+
+    let r = d[i];
+    let g = d[i + 1];
+    let b = d[i + 2];
+
+    // contrast around middle grey
+    r = (r - 128) * amount + 128;
+    g = (g - 128) * amount + 128;
+    b = (b - 128) * amount + 128;
+
+    // gentle saturation boost
+    const grey = 0.299 * r + 0.587 * g + 0.114 * b;
+    r = grey + (r - grey) * saturation;
+    g = grey + (g - grey) * saturation;
+    b = grey + (b - grey) * saturation;
+
+    d[i] = Math.max(0, Math.min(255, r));
+    d[i + 1] = Math.max(0, Math.min(255, g));
+    d[i + 2] = Math.max(0, Math.min(255, b));
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
+async function renderMugMockupToCanvas(targetCanvas, options = {}) {
+  if (!quickPatternImage) {
+    showToastMessage('upload a pattern first');
+    return false;
+  }
+
+  const [base, mask, shadow, highlight, lighting] = await Promise.all([
+    loadAssetImageFromCandidates([
+      './mockup_mug.png',
+      './mockup_mug(1).png',
+      './mockups/mockup_mug.png',
+      './mockups/mockup_mug(1).png'
+    ]),
+    loadAssetImageFromCandidates([
+      './mask_mug.png',
+      './mask_mug(1).png',
+      './mockups/mask_mug.png',
+      './mockups/mask_mug(1).png'
+    ]),
+    loadAssetImageFromCandidates([
+      './shadow_mug.png',
+      './shadow_mug(1).png',
+      './mockups/shadow_mug.png',
+      './mockups/shadow_mug(1).png'
+    ]),
+    loadAssetImageFromCandidates([
+      './highlight_mug.png',
+      './highlight_mug(1).png',
+      './mockups/highlight_mug.png',
+      './mockups/highlight_mug(1).png'
+    ]),
+    loadAssetImageFromCandidates([
+      './lighting_mug.png',
+      './lighting_mug(1).png',
+      './mockups/lighting_mug.png',
+      './mockups/lighting_mug(1).png'
+    ])
+  ]);
+
+  const scalePercent = options.scalePercent || document.getElementById('quickScale')?.value || 100;
+
+  targetCanvas.width = base.naturalWidth || base.width;
+  targetCanvas.height = base.naturalHeight || base.height;
+
+  const ctx = targetCanvas.getContext('2d');
+  ctx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  // 1. full mug base
+  ctx.drawImage(base, 0, 0, targetCanvas.width, targetCanvas.height);
+
+  // 2. repeating pattern layer
+  const patternLayer = document.createElement('canvas');
+  patternLayer.width = targetCanvas.width;
+  patternLayer.height = targetCanvas.height;
+
+  const pctx = patternLayer.getContext('2d');
+  pctx.imageSmoothingEnabled = true;
+  pctx.imageSmoothingQuality = 'high';
+
+  const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
+
+  const xOffset = Number(document.getElementById('quickX')?.value || 0) / 100 * tile.width;
+  const yOffset = Number(document.getElementById('quickY')?.value || 0) / 100 * tile.height;
+
+  // Draw explicit repeated tiles for reliable Safari/Koder rendering.
+  drawRepeatedTileLayer(pctx, tile, patternLayer.width, patternLayer.height, xOffset, yOffset);
+
+  // 3. mask pattern to mug print area
+  // The mug mask is black/white, so convert white pixels into true alpha first.
+  const alphaMask = createAlphaMaskFromBlackWhiteMask(mask, patternLayer.width, patternLayer.height);
+  pctx.globalCompositeOperation = 'destination-in';
+  pctx.drawImage(alphaMask, 0, 0);
+  pctx.globalCompositeOperation = 'source-over';
+
+  // Slightly boost the pattern before blending so it does not look washed out on ceramic.
+  boostPatternLayerContrast(patternLayer, 1.22, 1.10);
+
+  // 4. pattern over mug, blended into ceramic instead of pasted on top
+  ctx.save();
+  ctx.globalAlpha = 1.0;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  // 5. tiny normal colour pass so light pattern details remain visible
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  // 6. shadow layer for stronger mug depth
+  ctx.save();
+  ctx.globalAlpha = 0.78;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(shadow, 0, 0, targetCanvas.width, targetCanvas.height);
+  ctx.restore();
+
+  // 7. lighting layer, very subtle so it does not wash out the pattern
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.globalCompositeOperation = 'screen';
+  ctx.drawImage(lighting, 0, 0, targetCanvas.width, targetCanvas.height);
+  ctx.restore();
+
+  // 8. highlight layer, controlled shine
+  ctx.save();
+  ctx.globalAlpha = 0.24;
+  ctx.globalCompositeOperation = 'screen';
+  ctx.drawImage(highlight, 0, 0, targetCanvas.width, targetCanvas.height);
+  ctx.restore();
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+
+  lastMugRenderCanvas = targetCanvas;
+  return true;
+}
+
+async function renderQuickMugCard() {
+  const canvas = document.getElementById('mugQuickCanvas');
+  const placeholder = document.getElementById('mugPlaceholder');
+  if (!canvas || !quickPatternImage) return;
+
+  try {
+    await renderMugMockupToCanvas(canvas);
+    canvas.classList.remove('hidden');
+    if (placeholder) placeholder.classList.add('hidden');
+  } catch (err) {
+    console.error(err);
+    showToastMessage('Mug assets not found. Put mockup_mug.png, mask_mug.png, shadow_mug.png, highlight_mug.png and lighting_mug.png in the same folder as this HTML, or inside /mockups.');
+  }
+}
+
+async function openQuickMugPreview() {
+  const largeCanvas = document.getElementById('largePreviewCanvas');
+  const placeholder = document.getElementById('previewPlaceholder');
+  if (!largeCanvas) return;
+
+  try {
+    await renderMugMockupToCanvas(largeCanvas);
+    largeCanvas.classList.remove('hidden');
+    if (placeholder) placeholder.classList.add('hidden');
+  } catch (err) {
+    console.error(err);
+    largeCanvas.classList.add('hidden');
+    if (placeholder) placeholder.classList.remove('hidden');
+    showToastMessage('Mug assets not found. Put the five mug PNG assets in the same folder as this HTML, or inside /mockups.');
+  }
+}
+
+
+let currentPreviewProduct = '';
+let notebookSideMode = 'both';
+
+async function renderLayeredProductToCanvas(targetCanvas, config) {
+  if (!quickPatternImage) {
+    showToastMessage('upload a pattern first');
+    return false;
+  }
+
+  const base = await loadAssetImageFromCandidates(config.basePaths, (config.productName || 'product') + ' base');
+  const mask = await loadAssetImageFromCandidates(config.maskPaths, (config.productName || 'product') + ' mask');
+
+  const shadow = config.shadowPaths ? await loadAssetImageFromCandidates(config.shadowPaths, (config.productName || 'product') + ' shadow').catch(() => null) : null;
+  const highlight = config.highlightPaths ? await loadAssetImageFromCandidates(config.highlightPaths, (config.productName || 'product') + ' highlight').catch(() => null) : null;
+  const lighting = config.lightingPaths ? await loadAssetImageFromCandidates(config.lightingPaths, (config.productName || 'product') + ' lighting').catch(() => null) : null;
+
+  targetCanvas.width = base.naturalWidth || base.width;
+  targetCanvas.height = base.naturalHeight || base.height;
+
+  const ctx = targetCanvas.getContext('2d');
+  ctx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  ctx.drawImage(base, 0, 0, targetCanvas.width, targetCanvas.height);
+
+  const patternLayer = document.createElement('canvas');
+  patternLayer.width = targetCanvas.width;
+  patternLayer.height = targetCanvas.height;
+
+  const pctx = patternLayer.getContext('2d');
+  pctx.imageSmoothingEnabled = true;
+  pctx.imageSmoothingQuality = 'high';
+
+  const scalePercent = config.scalePercent || document.getElementById('quickScale')?.value || config.defaultScale || 100;
+  const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
+  const xOffset = Number(document.getElementById('quickX')?.value || 0) / 100 * tile.width;
+  const yOffset = Number(document.getElementById('quickY')?.value || 0) / 100 * tile.height;
+
+  drawRepeatedTileLayer(pctx, tile, patternLayer.width, patternLayer.height, xOffset, yOffset);
+
+  const alphaMask = createAlphaMaskFromBlackWhiteMask(mask, patternLayer.width, patternLayer.height);
+  pctx.globalCompositeOperation = 'destination-in';
+  pctx.drawImage(alphaMask, 0, 0);
+  pctx.globalCompositeOperation = 'source-over';
+
+  boostPatternLayerContrast(patternLayer, config.contrast || 1.16, config.saturation || 1.05);
+
+  ctx.save();
+  ctx.globalAlpha = config.patternAlpha ?? 0.98;
+  ctx.globalCompositeOperation = config.patternBlend || 'multiply';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = config.normalAlpha ?? 0.16;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  if (shadow) {
+    ctx.save();
+    ctx.globalAlpha = config.shadowAlpha ?? 0.62;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(shadow, 0, 0, targetCanvas.width, targetCanvas.height);
+    ctx.restore();
+  }
+
+  if (lighting) {
+    ctx.save();
+    ctx.globalAlpha = config.lightingAlpha ?? 0.10;
+    ctx.globalCompositeOperation = 'screen';
+    ctx.drawImage(lighting, 0, 0, targetCanvas.width, targetCanvas.height);
+    ctx.restore();
+  }
+
+  if (highlight) {
+    ctx.save();
+    ctx.globalAlpha = config.highlightAlpha ?? 0.20;
+    ctx.globalCompositeOperation = 'screen';
+    ctx.drawImage(highlight, 0, 0, targetCanvas.width, targetCanvas.height);
+    ctx.restore();
+  }
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  return true;
+}
+
+function getNotebookAssetsForSide(side) {
+  const basePaths = [
+    './notebook_mockup.jpeg',
+    './notebook_mockup.jpg',
+    './notebook_mockup.png',
+    './notebook_mockup.webp',
+    './notebook-mockup.jpeg',
+    './notebook-mockup.jpg',
+    './notebook-mockup.png',
+    './mockups/notebook_mockup.jpeg',
+    './mockups/notebook_mockup.jpg',
+    './mockups/notebook_mockup.png',
+    './mockups/notebook_mockup.webp',
+    './mockups/notebook-mockup.jpeg',
+    './mockups/notebook-mockup.jpg',
+    './mockups/notebook-mockup.png'
+  ];
+
+  const frontPaths = [
+    './frontmask_notebook.png',
+    './front_mask_notebook.png',
+    './notebook_frontmask.png',
+    './notebook_front_mask.png',
+    './frontmask_notebook.PNG',
+    './mockups/frontmask_notebook.png',
+    './mockups/front_mask_notebook.png',
+    './mockups/notebook_frontmask.png',
+    './mockups/notebook_front_mask.png',
+    './mockups/frontmask_notebook.PNG'
+  ];
+
+  const backPaths = [
+    './backmask_notebook.png',
+    './back_mask_notebook.png',
+    './notebook_backmask.png',
+    './notebook_back_mask.png',
+    './backmask_notebook.PNG',
+    './mockups/backmask_notebook.png',
+    './mockups/back_mask_notebook.png',
+    './mockups/notebook_backmask.png',
+    './mockups/notebook_back_mask.png',
+    './mockups/backmask_notebook.PNG'
+  ];
+
+  if (side === 'front') return { basePaths, maskPaths: frontPaths };
+  if (side === 'back') return { basePaths, maskPaths: backPaths };
+
+  return { basePaths, maskPaths: null, frontPaths, backPaths };
+}
+
+async function renderNotebookMockupToCanvas(targetCanvas, side = notebookSideMode, forcedScalePercent = null) {
+  if (!quickPatternImage) {
+    showToastMessage('upload a pattern first');
+    return false;
+  }
+
+  // ONE scale source for both / left / right.
+  // This prevents the single-side notebook preview from jumping back to tiny stamp mode.
+  let scalePercent = forcedScalePercent || getEffectiveScaleForProduct('notebook');
+  if (side === 'front' || side === 'back') scalePercent = Math.round(scalePercent * 1.03);
+
+  const assets = getNotebookAssetsForSide(side);
+
+  const basePaths = assets.basePaths;
+  const frontPaths = assets.frontPaths || assets.maskPaths;
+  const backPaths = assets.backPaths || assets.maskPaths;
+
+  const [base, frontMask, backMask] = await Promise.all([
+    loadAssetImageFromCandidates(basePaths, 'notebook base'),
+    side === 'back'
+      ? Promise.resolve(null)
+      : loadAssetImageFromCandidates(frontPaths, 'notebook left mask'),
+    side === 'front'
+      ? Promise.resolve(null)
+      : loadAssetImageFromCandidates(backPaths, 'notebook right mask')
+  ]);
+
+  targetCanvas.width = base.naturalWidth || base.width;
+  targetCanvas.height = base.naturalHeight || base.height;
+
+  const ctx = targetCanvas.getContext('2d');
+  ctx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(base, 0, 0, targetCanvas.width, targetCanvas.height);
+
+  const patternLayer = document.createElement('canvas');
+  patternLayer.width = targetCanvas.width;
+  patternLayer.height = targetCanvas.height;
+
+  const pctx = patternLayer.getContext('2d');
+  pctx.imageSmoothingEnabled = true;
+  pctx.imageSmoothingQuality = 'high';
+
+  const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
+  const xOffset = Number(document.getElementById('quickX')?.value || 0) / 100 * tile.width;
+  const yOffset = Number(document.getElementById('quickY')?.value || 0) / 100 * tile.height;
+
+  drawRepeatedTileLayer(pctx, tile, patternLayer.width, patternLayer.height, xOffset, yOffset);
+
+  const maskCanvas = document.createElement('canvas');
+  maskCanvas.width = targetCanvas.width;
+  maskCanvas.height = targetCanvas.height;
+  const mctx = maskCanvas.getContext('2d');
+
+  if (side === 'front' || side === 'both') {
+    const frontAlpha = createAlphaMaskFromBlackWhiteMask(frontMask, targetCanvas.width, targetCanvas.height);
+    mctx.drawImage(frontAlpha, 0, 0);
+  }
+
+  if (side === 'back' || side === 'both') {
+    const backAlpha = createAlphaMaskFromBlackWhiteMask(backMask, targetCanvas.width, targetCanvas.height);
+    mctx.drawImage(backAlpha, 0, 0);
+  }
+
+  pctx.globalCompositeOperation = 'destination-in';
+  pctx.drawImage(maskCanvas, 0, 0);
+  pctx.globalCompositeOperation = 'source-over';
+
+  boostPatternLayerContrast(patternLayer, 1.14, 1.06);
+
+  ctx.save();
+  ctx.globalAlpha = 0.96;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  return true;
+}
+
+async function renderTumblerMockupToCanvas(targetCanvas, forcedScalePercent = null) {
+  return renderLayeredProductToCanvas(targetCanvas, {
+    productName: 'tumbler',
+    scalePercent: forcedScalePercent || getEffectiveScaleForProduct('tumbler'),
+    basePaths: [
+      './tumbler_mockup.png',
+      './tumbler_mockup.jpg',
+      './tumbler_mockup.jpeg',
+      './tumbler_mockup.webp',
+      './tumbler-mockup.png',
+      './tumbler-mockup.jpg',
+      './tumbler.png',
+      './tumbler_mockup.PNG',
+      './mockups/tumbler_mockup.png',
+      './mockups/tumbler_mockup.jpg',
+      './mockups/tumbler_mockup.jpeg',
+      './mockups/tumbler_mockup.webp',
+      './mockups/tumbler-mockup.png',
+      './mockups/tumbler-mockup.jpg',
+      './mockups/tumbler.png',
+      './mockups/tumbler_mockup.PNG'
+    ],
+    maskPaths: [
+      './mask_tumbler.png',
+      './tumbler_mask.png',
+      './mask-tumbler.png',
+      './tumbler-mask.png',
+      './mask_tumbler.PNG',
+      './tumbler_mask.PNG',
+      './mockups/mask_tumbler.png',
+      './mockups/tumbler_mask.png',
+      './mockups/mask-tumbler.png',
+      './mockups/tumbler-mask.png',
+      './mockups/mask_tumbler.PNG',
+      './mockups/tumbler_mask.PNG'
+    ],
+    patternBlend: 'multiply',
+    patternAlpha: 1.0,
+    normalAlpha: 0.12,
+    contrast: 1.18,
+    saturation: 1.08,
+    shadowAlpha: 0
+  });
+}
+
+
+function getEffectiveScaleForProduct(product) {
+  const raw = Number(document.getElementById('quickScale')?.value || 80);
+
+  // Flash mop scale safety:
+  // The slider's real starting value is 80, not 100.
+  // Treat 80 as the untouched/default state so adding Apple Pencil
+  // does NOT force every party guest into tiny ditsy mode.
+  const isDefaultSlider = (raw === 80 || raw === 100);
+
+  if (isDefaultSlider) {
+    if (product === 'notebook') return 230;
+    if (product === 'tumbler') return 115;
+    if (product === 'floorcushion') return 105;
+    if (product === 'applepencil') return 125;
+    return 100;
+  }
+
+  // If user moves slider, respect it but keep product-specific feel.
+  if (product === 'notebook') return Math.round(raw * 2.3);
+  if (product === 'tumbler') return Math.round(raw * 1.15);
+  if (product === 'floorcushion') return Math.round(raw * 1.05);
+  if (product === 'applepencil') return Math.round(raw * 1.25);
+  return raw;
+}
+
+
+
+async function renderApplePencilMockupToCanvas(targetCanvas, forcedScalePercent = null) {
+  // Apple Pencil party guest: render with the same layered engine,
+  // but with a product-specific scale so the card does not stay shy/empty.
+  return renderLayeredProductToCanvas(targetCanvas, {
+    productName: 'apple pencil',
+    scalePercent: forcedScalePercent || getEffectiveScaleForProduct('applepencil'),
+
+    basePaths: [
+      './applepencil_mockup.png',
+      './mockups/applepencil_mockup.png'
+    ],
+
+    maskPaths: [
+      './mask_applepencil.png',
+      './mockups/mask_applepencil.png'
+    ],
+
+    patternBlend: 'multiply',
+    patternAlpha: 0.98,
+    normalAlpha: 0.14,
+    contrast: 1.22,
+    saturation: 1.08,
+    shadowAlpha: 0
+  });
+}
+
+
+async function renderFloorCushionMockupToCanvas(targetCanvas, forcedScalePercent = null) {
+  return renderLayeredProductToCanvas(targetCanvas, {
+    productName: 'floor cushion',
+    scalePercent: forcedScalePercent || getEffectiveScaleForProduct('floorcushion'),
+
+    basePaths: [
+      './floorcushion_base.png',
+      './floorcushion_mockup.png',
+      './floor_cushion_base.png',
+      './floor_cushion_mockup.png',
+      './mockups/floorcushion_base.png',
+      './mockups/floorcushion_mockup.png',
+      './mockups/floor_cushion_base.png',
+      './mockups/floor_cushion_mockup.png'
+    ],
+
+    maskPaths: [
+      './mask_floorcushion.png',
+      './floorcushion_mask.png',
+      './mask_floor_cushion.png',
+      './floor_cushion_mask.png',
+      './mockups/mask_floorcushion.png',
+      './mockups/floorcushion_mask.png',
+      './mockups/mask_floor_cushion.png',
+      './mockups/floor_cushion_mask.png'
+    ],
+
+    // soft fabric tuning
+    patternBlend: 'multiply',
+    patternAlpha: 0.92,
+    normalAlpha: 0.24,
+    contrast: 1.08,
+    saturation: 1.04,
+    shadowAlpha: 0
+  });
+}
+
+async function renderProductToCanvas(product, targetCanvas) {
+  window.__currentProductScale = getEffectiveScaleForProduct(product);
+
+  if (product === 'mug') return renderMugMockupToCanvas(targetCanvas, { scalePercent: window.__currentProductScale });
+  if (product === 'notebook') return renderNotebookMockupToCanvas(targetCanvas, notebookSideMode, window.__currentProductScale);
+  if (product === 'tumbler') return renderTumblerMockupToCanvas(targetCanvas, window.__currentProductScale);
+  if (product === 'floorcushion') return renderFloorCushionMockupToCanvas(targetCanvas, window.__currentProductScale);
+  if (product === 'applepencil') return renderApplePencilMockupToCanvas(targetCanvas, window.__currentProductScale);
+
+  return false;
+}
+
+async function renderQuickCard(product) {
+  const canvas = document.getElementById(product + 'QuickCanvas');
+  const placeholder = document.getElementById(product + 'Placeholder');
+  if (!canvas || !quickPatternImage) return;
+
+  try {
+    await renderProductToCanvas(product, canvas);
+    canvas.classList.remove('hidden');
+    if (placeholder) placeholder.classList.add('hidden');
+  } catch (err) {
+    console.error(err);
+    showToastMessage((err && err.message) ? err.message : (product + ' assets not found. Put its PNG/JPEG files in the same folder as this HTML, or inside /mockups.'));
+  }
+}
+
+async function openProductPreview(product) {
+  currentPreviewProduct = product;
+  const largeCanvas = document.getElementById('largePreviewCanvas');
+  const placeholder = document.getElementById('previewPlaceholder');
+  if (!largeCanvas) return;
+
+  try {
+    await renderProductToCanvas(product, largeCanvas);
+    largeCanvas.classList.remove('hidden');
+    if (placeholder) placeholder.classList.add('hidden');
+  } catch (err) {
+    console.error(err);
+    largeCanvas.classList.add('hidden');
+    if (placeholder) placeholder.classList.remove('hidden');
+    showToastMessage((err && err.message) ? err.message : (product + ' assets not found. Put its PNG/JPEG files in the same folder as this HTML, or inside /mockups.'));
+  }
+}
+
+function downloadCanvasPNG(canvas, filename) {
+  if (!canvas) return;
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function setupUpload(inputId, cardId, stripId, thumbId, fileNameId) {
+  const input = document.getElementById(inputId);
+  const card = document.getElementById(cardId);
+  const strip = stripId ? document.getElementById(stripId) : null;
+  const thumb = thumbId ? document.getElementById(thumbId) : null;
+  const fileName = fileNameId ? document.getElementById(fileNameId) : null;
+
+  if (!input) return;
+
+  input.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      if (thumb) thumb.src = ev.target.result;
+      if (fileName) fileName.textContent = file.name;
+      if (strip) strip.classList.remove('hidden');
+      if (card && strip) card.classList.add('hidden');
+
+      if (inputId === 'quickUploadInput') {
+        quickPatternSrc = ev.target.result;
+        quickPatternImage = new Image();
+        quickPatternImage.onload = () => {
+          ['mug','notebook','tumbler','floorcushion','applepencil'].forEach(product => {
+            const canvas = document.getElementById(product + 'QuickCanvas');
+            const placeholder = document.getElementById(product + 'Placeholder');
+            if (canvas) canvas.classList.add('hidden');
+            if (placeholder) placeholder.classList.remove('hidden');
+          });
+        };
+        quickPatternImage.src = ev.target.result;
+      }
+
+      if (inputId === 'creativeUploadInput' || inputId === 'addPatternInput') {
+        addTrayPattern(ev.target.result, inputId === 'creativeUploadInput' ? 'main' : 'extra');
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+setupUpload('quickUploadInput', 'quickUploadCard', 'quickUploadStrip', 'quickThumb', 'quickFileName');
+setupUpload('creativeUploadInput', 'creativeUploadCard', null, null, null);
+setupUpload('addPatternInput', null, null, null, null);
+
+document.getElementById('quickReplaceBtn').addEventListener('click', () => {
+  document.getElementById('quickUploadInput').value = '';
+  quickPatternImage = null;
+  quickPatternSrc = '';
+  document.getElementById('quickUploadStrip').classList.add('hidden');
+  document.getElementById('quickUploadCard').classList.remove('hidden');
+  ['mug','notebook','tumbler','floorcushion','applepencil'].forEach(product => {
+    document.getElementById(product + 'QuickCanvas')?.classList.add('hidden');
+    document.getElementById(product + 'Placeholder')?.classList.remove('hidden');
+  });
+});
+
+const collectionTray = document.getElementById('collectionTray');
+let trayCount = 0;
+
+function addTrayPattern(src, role) {
+  if (role === 'main') {
+    collectionTray.innerHTML = '';
+    trayCount = 0;
+  }
+
+  trayCount++;
+  const item = document.createElement('div');
+  item.className = 'tray-item' + (trayCount === 1 ? ' active' : '');
+  item.innerHTML = `
+    <img class="tray-thumb" src="${src}" alt="">
+    <div>
+      <div class="tray-name">${role === 'main' ? 'main' : 'extra ' + (trayCount - 1)}</div>
+      <div class="tray-role">${role === 'main' ? 'hero pattern' : 'coordinate / blender'}</div>
+    </div>
+  `;
+
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.tray-item').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+  });
+
+  collectionTray.appendChild(item);
+}
+
+const quickCards = document.querySelectorAll('.mock-card');
+const quickCount = document.getElementById('quickSelectedCount');
+
+function updateQuickCount() {
+  const count = document.querySelectorAll('.mock-card.selected').length;
+  quickCount.textContent = `${count} selected`;
+}
+
+quickCards.forEach(card => {
+  const bubble = card.querySelector('.select-bubble');
+  bubble.addEventListener('click', e => {
+    e.stopPropagation();
+    card.classList.toggle('selected');
+    updateQuickCount();
+  });
+});
+
+document.getElementById('selectAllQuickBtn').addEventListener('click', () => {
+  quickCards.forEach(card => card.classList.add('selected'));
+  updateQuickCount();
+});
+
+document.getElementById('deselectAllQuickBtn').addEventListener('click', () => {
+  quickCards.forEach(card => card.classList.remove('selected'));
+  updateQuickCount();
+});
+
+document.getElementById('downloadQuickBtn').addEventListener('click', async () => {
+  const selected = [...document.querySelectorAll('.mock-card.selected')].map(card => card.dataset.product);
+  if (!selected.length) {
+    alert('select at least one mock-up');
+    return;
+  }
+
+  if (selected.includes('mug')) {
+    const mugCanvas = document.getElementById('mugQuickCanvas');
+    if (quickPatternImage && mugCanvas) {
+      if (mugCanvas.classList.contains('hidden')) await renderQuickCard('mug');
+  renderQuickCard('notebook');
+  renderQuickCard('tumbler');
+  renderQuickCard('floorcushion');
+      downloadCanvasPNG(mugCanvas, 'mug_mockup.png');
+    }
+  }
+
+  const notReady = selected.filter(p => p !== 'mug');
+  if (notReady.length) {
+    alert('Mug downloads now. ' + notReady.join(', ') + ' engines are still placeholders.');
+  }
+});
+
+document.getElementById('generateQuickBtn').addEventListener('click', () => {
+  if (!quickPatternImage) {
+    alert('upload a pattern first');
+    return;
+  }
+  renderQuickCard('mug');
+  renderQuickCard('notebook');
+  renderQuickCard('tumbler');
+  renderQuickCard('floorcushion');
+  renderQuickCard('applepencil');
+});
+
+const previewOverlay = document.getElementById('previewOverlay');
+const previewTitle = document.getElementById('previewTitle');
+const quickControls = document.getElementById('quickControls');
+const creativePatternControls = document.getElementById('creativePatternControls');
+const creativeColorControls = document.getElementById('creativeColorControls');
+const previewIcon = document.getElementById('previewIcon');
+const previewStageText = document.getElementById('previewStageText');
+
+document.querySelectorAll('.preview-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const kind = btn.dataset.kind;
+    const name = btn.dataset.name;
+
+    previewTitle.textContent = name;
+    previewOverlay.classList.remove('hidden');
+
+    const creative = kind === 'creative';
+    quickControls.classList.toggle('hidden', creative);
+    creativePatternControls.classList.toggle('hidden', !creative);
+    creativeColorControls.classList.toggle('hidden', !creative);
+    if (creative) document.getElementById('notebookSideControls')?.classList.add('hidden');
+
+    previewIcon.textContent = creative ? '✿' : '✨';
+    previewStageText.textContent = creative
+      ? 'creative scene preview will render here'
+      : 'quick mock-up preview will render here';
+
+    const largeCanvas = document.getElementById('largePreviewCanvas');
+    const previewPlaceholder = document.getElementById('previewPlaceholder');
+    if (largeCanvas) largeCanvas.classList.add('hidden');
+    if (previewPlaceholder) previewPlaceholder.classList.remove('hidden');
+
+    if (!creative) {
+      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : '';
+      currentPreviewProduct = product;
+      document.getElementById('notebookSideControls')?.classList.toggle('hidden', product !== 'notebook');
+      if (product) openProductPreview(product);
+    }
+
+    if (name.includes('bedding')) {
+      document.getElementById('colourLabel1').textContent = 'bedsheet colour';
+      document.getElementById('colourLabel2').textContent = 'blanket colour';
+    } else if (name.includes('fabric')) {
+      document.getElementById('colourLabel1').textContent = 'ribbon colour';
+      document.getElementById('colourLabel2').textContent = 'background accent';
+    } else {
+      document.getElementById('colourLabel1').textContent = 'piping colour';
+      document.getElementById('colourLabel2').textContent = 'sock / deco colour';
+    }
+  });
+});
+
+
+['quickScale', 'quickX', 'quickY'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    ['mug','notebook','tumbler','floorcushion','applepencil'].forEach(product => {
+      const canvas = document.getElementById(product + 'QuickCanvas');
+      if (quickPatternImage && canvas && !canvas.classList.contains('hidden')) {
+        renderQuickCard(product);
+      }
+    });
+    const largeCanvas = document.getElementById('largePreviewCanvas');
+    if (quickPatternImage && largeCanvas && !largeCanvas.classList.contains('hidden') && currentPreviewProduct) {
+      openProductPreview(currentPreviewProduct);
+    }
+  });
+});
+
+document.querySelectorAll('.notebook-side-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.notebook-side-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    notebookSideMode = btn.dataset.side || 'both';
+    if (currentPreviewProduct === 'notebook') {
+      openProductPreview('notebook');
+      renderQuickCard('notebook');
+    }
+  });
+});
+
+document.querySelector('.preview-controls .control-group button')?.addEventListener('click', () => {
+  const largeCanvas = document.getElementById('largePreviewCanvas');
+  if (largeCanvas && !largeCanvas.classList.contains('hidden')) {
+    downloadCanvasPNG(largeCanvas, (currentPreviewProduct || 'mockup') + '_mockup.png');
+  } else {
+    alert('open or render a mock-up first');
+  }
+});
+
+document.getElementById('closePreviewBtn').addEventListener('click', () => {
+  previewOverlay.classList.add('hidden');
+});
+console.log('Mock-up Studio asset path fix loaded');
+</script>
+</body>
+</html>
