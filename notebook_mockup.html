@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>Seamless Studio – notebook mock-up</title>
+
+<style>
+
+  body {
+
+    margin:0;
+
+    background:#111;
+
+    display:flex;
+
+    flex-direction:column;
+
+    align-items:center;
+
+    font-family:sans-serif;
+
+  }
+
+  canvas {
+
+    max-width:90vw;
+
+    margin-top:20px;
+
+    background:#222;
+
+    border-radius:12px;
+
+  }
+
+  .controls {
+
+    margin-top:15px;
+
+  }
+
+  button {
+
+    padding:10px 16px;
+
+    border:none;
+
+    border-radius:8px;
+
+    margin:0 5px;
+
+    cursor:pointer;
+
+    font-size:14px;
+
+  }
+
+  .active {
+
+    background:#ff7a00;
+
+    color:white;
+
+  }
+
+  .inactive {
+
+    background:#444;
+
+    color:#ccc;
+
+  }
+
+</style>
+
+</head>
+
+<body>
+
+<canvas id="canvas" width="1400" height="900"></canvas>
+
+<div class="controls">
+
+  <button id="patternBtn" class="active">pattern</button>
+
+  <button id="mockupBtn" class="inactive">mock-up</button>
+
+</div>
+
+<input type="file" id="upload" accept="image/*">
+
+<script>
+
+const canvas = document.getElementById("canvas");
+
+const ctx = canvas.getContext("2d");
+
+let userImage = null;
+
+let showMockup = false;
+
+// LOAD ASSETS
+
+const mockup = new Image();
+
+mockup.src = "notebook_mockup.jpeg";
+
+const frontMask = new Image();
+
+frontMask.src = "frontmask_notebook.png";
+
+const backMask = new Image();
+
+backMask.src = "backmask_notebook.png";
+
+// UPLOAD
+
+document.getElementById("upload").addEventListener("change", e => {
+
+  const file = e.target.files[0];
+
+  const img = new Image();
+
+  img.onload = () => {
+
+    userImage = img;
+
+    draw();
+
+  };
+
+  img.src = URL.createObjectURL(file);
+
+});
+
+// BUTTONS
+
+const patternBtn = document.getElementById("patternBtn");
+
+const mockupBtn = document.getElementById("mockupBtn");
+
+patternBtn.onclick = () => {
+
+  showMockup = false;
+
+  patternBtn.classList.add("active");
+
+  patternBtn.classList.remove("inactive");
+
+  mockupBtn.classList.add("inactive");
+
+  mockupBtn.classList.remove("active");
+
+  draw();
+
+};
+
+mockupBtn.onclick = () => {
+
+  showMockup = true;
+
+  mockupBtn.classList.add("active");
+
+  mockupBtn.classList.remove("inactive");
+
+  patternBtn.classList.add("inactive");
+
+  patternBtn.classList.remove("active");
+
+  draw();
+
+};
+
+// CREATE TILE PATTERN
+
+function createPatternCanvas(img) {
+
+  const pCanvas = document.createElement("canvas");
+
+  pCanvas.width = canvas.width;
+
+  pCanvas.height = canvas.height;
+
+  const pctx = pCanvas.getContext("2d");
+
+  const size = 300;
+
+  for (let x = 0; x < pCanvas.width; x += size) {
+
+    for (let y = 0; y < pCanvas.height; y += size) {
+
+      pctx.drawImage(img, x, y, size, size);
+
+    }
+
+  }
+
+  return pCanvas;
+
+}
+
+// MASK DRAW
+
+function drawMasked(mask, patternCanvas) {
+
+  const temp = document.createElement("canvas");
+
+  temp.width = canvas.width;
+
+  temp.height = canvas.height;
+
+  const tctx = temp.getContext("2d");
+
+  tctx.drawImage(mask, 0, 0);
+
+  tctx.globalCompositeOperation = "source-in";
+
+  tctx.drawImage(patternCanvas, 0, 0);
+
+  tctx.globalCompositeOperation = "source-over";
+
+  ctx.drawImage(temp, 0, 0);
+
+}
+
+// MAIN DRAW
+
+function draw() {
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!userImage) return;
+
+  if (!showMockup) {
+
+    // PATTERN PREVIEW
+
+    const pattern = createPatternCanvas(userImage);
+
+    ctx.drawImage(pattern, 0, 0);
+
+    return;
+
+  }
+
+  // MOCK-UP
+
+  ctx.drawImage(mockup, 0, 0, canvas.width, canvas.height);
+
+  const pattern = createPatternCanvas(userImage);
+
+  drawMasked(frontMask, pattern);
+
+  drawMasked(backMask, pattern);
+
+}
+
+// INITIAL DRAW
+
+draw();
+
+</script>
+
+</body>
+
+</html>
