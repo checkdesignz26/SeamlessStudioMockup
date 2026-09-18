@@ -1009,7 +1009,7 @@ input[type=text] {
             </label>
 
             <label>logo size</label>
-            <input id="brandingLogoSize" type="range" min="8" max="30" value="16">
+            <input id="brandingLogoSize" type="range" min="8" max="45" value="26">
             <label>logo opacity</label>
             <input id="brandingLogoOpacity" type="range" min="20" max="100" value="90">
 
@@ -1434,7 +1434,7 @@ const brandingState = {
   showLogo: false,
   logoX: 88,
   logoY: 90,
-  logoSize: 16,
+  logoSize: 26,
   logoOpacity: 90,
   badges: [
     { id: 1, name: 'digital download', enabled: true, mode: 'text', text: 'DIGITAL DOWNLOAD · INSTANT FILE', image: null, imageSrc: '', x: 50, y: 92, size: 22, opacity: 100 },
@@ -1804,7 +1804,7 @@ function refreshBrandingMarkers() {
       get: () => brandingState.logoSize,
       set: v => { brandingState.logoSize = Math.round(v); },
       min: 8,
-      max: 30,
+      max: 45,
       onLiveUpdate: v => {
         const el = document.getElementById('brandingLogoSize');
         if (el) el.value = Math.round(v);
