@@ -708,6 +708,10 @@ button:active { transform: scale(0.98); }
   user-select: none;
   touch-action: none;
   max-width: 220px;
+}
+
+.branding-marker-label {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -716,6 +720,24 @@ button:active { transform: scale(0.98); }
 .branding-marker.dragging {
   cursor: grabbing;
   opacity: 0.85;
+}
+
+.branding-resize-handle {
+  position: absolute;
+  right: -12px;
+  bottom: -12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent3);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  border: 2px solid rgba(255,255,255,0.9);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  cursor: nwse-resize;
+  touch-action: none;
 }
 
 .badge-editor {
@@ -823,47 +845,30 @@ input[type=range] {
   margin-top: 8px;
 }
 
-/* branding overlay */
+/* branding panel (inline, under the global scale panel) */
 
-.branding-card {
-  width: min(560px, 100%);
-  max-height: 92vh;
-  overflow-y: auto;
-  padding: 22px;
-  border-radius: 34px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
-}
-
-.branding-card h2 {
-  margin: 0 0 6px;
-  font-family: 'Caveat', cursive;
-  font-size: 34px;
-  color: var(--soft);
-}
-
-.branding-card > p {
-  color: var(--muted);
-  font-size: 13px;
-  margin: 0 0 16px;
+.panel-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 22px 0 18px;
 }
 
 .branding-logo-row {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .branding-logo-preview {
-  width: 60px;
-  height: 60px;
+  width: 100%;
+  max-width: 220px;
+  height: 140px;
   border-radius: 16px;
   border: 1px solid var(--border);
   background: rgba(0,0,0,0.14);
   object-fit: contain;
   display: none;
-  flex: none;
 }
 
 .branding-logo-preview.visible {
@@ -980,8 +985,54 @@ input[type=text] {
 
           <button class="secondary" id="resetScaleBtn" type="button" style="width:100%; margin-top:14px;">reset to default</button>
 
-          <button class="secondary" id="brandingBtn" type="button" style="width:100%; margin-top:22px;">🏷️ branding &amp; badges</button>
-          <p style="color:var(--muted); font-size:12px; margin:8px 0 0;">upload your logo and add digital-download / sale badges — they'll show up right on these mock-ups.</p>
+          <div class="panel-divider"></div>
+
+          <h2>branding &amp; badges</h2>
+          <p>upload your shop logo and add digital-download / sale badges — both get stamped right onto these mock-ups, and again on every download.</p>
+
+          <div class="control-group">
+            <h3>shop logo</h3>
+            <div class="branding-logo-row">
+              <img id="brandingLogoPreview" class="branding-logo-preview" alt="logo preview">
+              <div style="display:flex; gap:8px; width:100%;">
+                <div class="add-pattern-wrap" style="flex:1;">
+                  <button class="secondary" type="button" style="width:100%;">upload logo</button>
+                  <input id="brandingLogoInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp">
+                </div>
+                <button class="secondary" id="brandingLogoClearBtn" type="button">remove</button>
+              </div>
+            </div>
+
+            <label class="branding-check-row" style="margin-top:14px;">
+              <input type="checkbox" id="brandingLogoToggle">
+              <span>show logo watermark on downloads</span>
+            </label>
+
+            <label>logo size</label>
+            <input id="brandingLogoSize" type="range" min="8" max="30" value="16">
+            <label>logo opacity</label>
+            <input id="brandingLogoOpacity" type="range" min="20" max="100" value="90">
+
+            <label class="branding-check-row" style="margin-top:14px;">
+              <input type="checkbox" id="brandingLogoRecolorToggle">
+              <span>recolour logo (handy if it's white and the background is light)</span>
+            </label>
+            <div id="brandingLogoColorRow" class="hidden" style="display:flex; align-items:center; gap:10px;">
+              <input id="brandingLogoColor" type="color" value="#202020" style="flex:none; width:60px;">
+              <span style="color:var(--muted); font-size:12px;">every visible pixel of the logo is replaced with this colour, alpha shape kept.</span>
+            </div>
+
+            <p style="color:var(--muted); font-size:12px; margin:10px 0 0;">📍 open any "preview" and drag the logo — grab its corner handle to resize it too.</p>
+          </div>
+
+          <div class="control-group">
+            <h3>badges</h3>
+            <p style="color:var(--muted); font-size:12px; margin:0 0 12px;">stack as many badges as you need — a "digital download" notice, a sale ribbon, whatever else. drag each one (and its corner handle) into place from any full preview.</p>
+
+            <div id="badgeList"></div>
+
+            <button class="secondary" id="addBadgeBtn" type="button" style="width:100%; margin-top:6px;">+ add another badge</button>
+          </div>
         </aside>
 
         <section>
@@ -1329,58 +1380,6 @@ input[type=text] {
   </div>
 </aside>
 
-<!-- BRANDING / DIGITAL DOWNLOAD OVERLAY -->
-<aside class="preview-overlay hidden" id="brandingOverlay">
-  <div class="branding-card">
-    <h2>branding &amp; digital download</h2>
-    <p>upload your shop logo and toggle a "digital download" badge — both get stamped onto every mock-up you download, so Etsy shoppers know exactly what they're buying.</p>
-
-    <div class="control-group">
-      <h3>shop logo</h3>
-      <div class="branding-logo-row">
-        <img id="brandingLogoPreview" class="branding-logo-preview" alt="logo preview">
-        <div class="add-pattern-wrap" style="flex:1;">
-          <button class="secondary" type="button" style="width:100%;">upload logo</button>
-          <input id="brandingLogoInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp">
-        </div>
-        <button class="secondary" id="brandingLogoClearBtn" type="button">remove</button>
-      </div>
-
-      <label class="branding-check-row" style="margin-top:14px;">
-        <input type="checkbox" id="brandingLogoToggle">
-        <span>show logo watermark on downloads</span>
-      </label>
-
-      <label>logo size</label>
-      <input id="brandingLogoSize" type="range" min="8" max="30" value="16">
-      <label>logo opacity</label>
-      <input id="brandingLogoOpacity" type="range" min="20" max="100" value="90">
-
-      <label class="branding-check-row" style="margin-top:14px;">
-        <input type="checkbox" id="brandingLogoRecolorToggle">
-        <span>recolour logo (handy if it's white and the background is light)</span>
-      </label>
-      <div id="brandingLogoColorRow" class="hidden" style="display:flex; align-items:center; gap:10px;">
-        <input id="brandingLogoColor" type="color" value="#202020" style="flex:none; width:60px;">
-        <span style="color:var(--muted); font-size:12px;">every visible pixel of the logo is replaced with this colour, alpha shape kept.</span>
-      </div>
-
-      <p style="color:var(--muted); font-size:12px; margin:10px 0 0;">📍 open any "preview" and drag the logo chip wherever you like — it remembers its spot.</p>
-    </div>
-
-    <div class="control-group">
-      <h3>badges</h3>
-      <p style="color:var(--muted); font-size:12px; margin:0 0 12px;">stack as many badges as you need — a "digital download" notice, a sale ribbon, whatever else. drag each one into place from any full preview.</p>
-
-      <div id="badgeList"></div>
-
-      <button class="secondary" id="addBadgeBtn" type="button" style="width:100%; margin-top:6px;">+ add another badge</button>
-    </div>
-
-    <button class="secondary close-preview" id="closeBrandingBtn" type="button">close</button>
-  </div>
-</aside>
-
 <script>
 const quickMode = document.getElementById('quickMode');
 const creativeMode = document.getElementById('creativeMode');
@@ -1444,8 +1443,6 @@ const brandingState = {
 };
 let badgeIdCounter = 2;
 
-const brandingBtn = document.getElementById('brandingBtn');
-const brandingOverlay = document.getElementById('brandingOverlay');
 const brandingLogoInput = document.getElementById('brandingLogoInput');
 const brandingLogoPreview = document.getElementById('brandingLogoPreview');
 const brandingLogoToggle = document.getElementById('brandingLogoToggle');
@@ -1458,16 +1455,6 @@ const brandingLogoColor = document.getElementById('brandingLogoColor');
 const badgeListEl = document.getElementById('badgeList');
 const addBadgeBtn = document.getElementById('addBadgeBtn');
 const brandingMarkerLayer = document.getElementById('brandingMarkerLayer');
-const previewOverlayEl = document.getElementById('previewOverlay');
-
-brandingBtn?.addEventListener('click', () => {
-  previewOverlayEl?.classList.add('hidden');
-  brandingOverlay.classList.remove('hidden');
-});
-document.getElementById('closeBrandingBtn')?.addEventListener('click', () => {
-  brandingOverlay.classList.add('hidden');
-  syncBranding();
-});
 
 brandingLogoInput?.addEventListener('change', e => {
   const file = e.target.files[0];
@@ -1719,12 +1706,16 @@ function layoutBrandingMarkers() {
   });
 }
 
-function createBrandingMarker(label, x, y, onMove) {
+function createBrandingMarker(label, x, y, onMove, sizeConfig) {
   const marker = document.createElement('div');
   marker.className = 'branding-marker';
-  marker.textContent = '✥ ' + label;
   marker.dataset.x = x;
   marker.dataset.y = y;
+
+  const labelEl = document.createElement('span');
+  labelEl.className = 'branding-marker-label';
+  labelEl.textContent = '✥ ' + label;
+  marker.appendChild(labelEl);
 
   marker.addEventListener('pointerdown', e => {
     e.preventDefault();
@@ -1757,6 +1748,45 @@ function createBrandingMarker(label, x, y, onMove) {
     marker.addEventListener('pointerup', onPointerUp);
   });
 
+  if (sizeConfig) {
+    const handle = document.createElement('div');
+    handle.className = 'branding-resize-handle';
+    handle.title = 'drag to resize';
+    handle.textContent = '⤡';
+    marker.appendChild(handle);
+
+    handle.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      handle.setPointerCapture(e.pointerId);
+      marker.classList.add('dragging');
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startSize = sizeConfig.get();
+      const min = sizeConfig.min ?? 6;
+      const max = sizeConfig.max ?? 60;
+
+      const onHandleMove = ev => {
+        const delta = ((ev.clientX - startX) + (ev.clientY - startY)) / 2;
+        const newSize = Math.max(min, Math.min(max, startSize + delta * 0.25));
+        sizeConfig.set(newSize);
+        sizeConfig.onLiveUpdate?.(newSize);
+      };
+
+      const onHandleUp = () => {
+        marker.classList.remove('dragging');
+        handle.removeEventListener('pointermove', onHandleMove);
+        handle.removeEventListener('pointerup', onHandleUp);
+        refreshCurrentPreviewRender();
+        reRenderVisibleQuickCards();
+      };
+
+      handle.addEventListener('pointermove', onHandleMove);
+      handle.addEventListener('pointerup', onHandleUp);
+    });
+  }
+
   return marker;
 }
 
@@ -1770,6 +1800,15 @@ function refreshBrandingMarkers() {
     brandingMarkerLayer.appendChild(createBrandingMarker('logo', brandingState.logoX, brandingState.logoY, (x, y) => {
       brandingState.logoX = x;
       brandingState.logoY = y;
+    }, {
+      get: () => brandingState.logoSize,
+      set: v => { brandingState.logoSize = Math.round(v); },
+      min: 8,
+      max: 30,
+      onLiveUpdate: v => {
+        const el = document.getElementById('brandingLogoSize');
+        if (el) el.value = Math.round(v);
+      }
     }));
   }
 
@@ -1781,6 +1820,15 @@ function refreshBrandingMarkers() {
     brandingMarkerLayer.appendChild(createBrandingMarker(label, badge.x, badge.y, (x, y) => {
       badge.x = x;
       badge.y = y;
+    }, {
+      get: () => badge.size,
+      set: v => { badge.size = Math.round(v); },
+      min: 8,
+      max: 45,
+      onLiveUpdate: v => {
+        const input = document.querySelector('.badge-editor[data-badge-id="' + badge.id + '"] .badge-size-input');
+        if (input) input.value = Math.round(v);
+      }
     }));
   });
 
@@ -1858,7 +1906,7 @@ function applyBrandingOverlay(sourceCanvas) {
       ctx.restore();
     } else {
       const text = badge.text.trim().toUpperCase();
-      const fontSize = Math.max(14, Math.round(w * 0.022));
+      const fontSize = Math.max(14, Math.round(w * 0.022 * ((badge.size || 22) / 22)));
       ctx.font = `700 ${fontSize}px Quicksand, sans-serif`;
       const paddingX = fontSize * 0.9;
       const paddingY = fontSize * 0.55;
@@ -3301,7 +3349,6 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
     const name = btn.dataset.name;
 
     previewTitle.textContent = name;
-    brandingOverlay?.classList.add('hidden');
     previewOverlay.classList.remove('hidden');
 
     const creative = kind === 'creative';
