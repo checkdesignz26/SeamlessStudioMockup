@@ -1247,7 +1247,15 @@ input[type=text] {
 
       <div class="control-group" id="quickControls">
         <h3>quick controls</h3>
-        <p style="color:var(--muted); font-size:13px; margin:0;">scale &amp; position now live in the <strong>global scale</strong> panel on the left of the quick mock-ups grid — adjust there and every card updates together.</p>
+        <p style="color:var(--muted); font-size:13px; margin:0 0 10px;">the <strong>global scale</strong> panel resizes every card at once. use these to give <em>this</em> mock-up its own scale &amp; position instead.</p>
+
+        <label>scale (this mock-up only)</label>
+        <input id="previewScale" type="range" min="45" max="260" value="80">
+        <label>horizontal position</label>
+        <input id="previewX" type="range" min="-100" max="100" value="0">
+        <label>vertical position</label>
+        <input id="previewY" type="range" min="-100" max="100" value="0">
+        <button class="secondary" id="previewMatchGlobalBtn" type="button" style="width:100%; margin-top:8px;">match global scale</button>
 
         <div id="notebookSideControls" class="hidden" style="margin-top:14px;">
           <label>notebook side</label>
@@ -2129,8 +2137,9 @@ async function renderMugMockupToCanvas(targetCanvas, options = {}) {
 
   const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
 
-  const xOffset = Number(document.getElementById('quickX')?.value || 0) / 100 * tile.width;
-  const yOffset = Number(document.getElementById('quickY')?.value || 0) / 100 * tile.height;
+  const mugOffset = getEffectiveOffsetForProduct('mug');
+  const xOffset = mugOffset.x / 100 * tile.width;
+  const yOffset = mugOffset.y / 100 * tile.height;
 
   // Draw explicit repeated tiles for reliable Safari/Koder rendering.
   drawRepeatedTileLayer(pctx, tile, patternLayer.width, patternLayer.height, xOffset, yOffset);
@@ -2258,8 +2267,9 @@ async function renderLayeredProductToCanvas(targetCanvas, config) {
 
   const scalePercent = config.scalePercent || document.getElementById('quickScale')?.value || config.defaultScale || 100;
   const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
-  const xOffset = Number(document.getElementById('quickX')?.value || 0) / 100 * tile.width;
-  const yOffset = Number(document.getElementById('quickY')?.value || 0) / 100 * tile.height;
+  const layeredOffset = getEffectiveOffsetForProduct(config.productKey || config.productName);
+  const xOffset = layeredOffset.x / 100 * tile.width;
+  const yOffset = layeredOffset.y / 100 * tile.height;
 
   drawRepeatedTileLayer(pctx, tile, patternLayer.width, patternLayer.height, xOffset, yOffset);
 
@@ -2406,8 +2416,9 @@ async function renderNotebookMockupToCanvas(targetCanvas, side = notebookSideMod
   pctx.imageSmoothingQuality = 'high';
 
   const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
-  const xOffset = Number(document.getElementById('quickX')?.value || 0) / 100 * tile.width;
-  const yOffset = Number(document.getElementById('quickY')?.value || 0) / 100 * tile.height;
+  const notebookOffset = getEffectiveOffsetForProduct('notebook');
+  const xOffset = notebookOffset.x / 100 * tile.width;
+  const yOffset = notebookOffset.y / 100 * tile.height;
 
   drawRepeatedTileLayer(pctx, tile, patternLayer.width, patternLayer.height, xOffset, yOffset);
 
@@ -2450,6 +2461,7 @@ async function renderNotebookMockupToCanvas(targetCanvas, side = notebookSideMod
 async function renderTumblerMockupToCanvas(targetCanvas, forcedScalePercent = null) {
   return renderLayeredProductToCanvas(targetCanvas, {
     productName: 'tumbler',
+    productKey: 'tumbler',
     scalePercent: forcedScalePercent || getEffectiveScaleForProduct('tumbler'),
     basePaths: [
       './tumbler_mockup.png',
@@ -2493,7 +2505,12 @@ async function renderTumblerMockupToCanvas(targetCanvas, forcedScalePercent = nu
 }
 
 
+const productOverrides = {};
+
 function getEffectiveScaleForProduct(product) {
+  const override = productOverrides[product];
+  if (override && override.scale != null) return override.scale;
+
   const raw = Number(document.getElementById('quickScale')?.value || 80);
 
   // Flash mop scale safety:
@@ -2518,6 +2535,17 @@ function getEffectiveScaleForProduct(product) {
   return raw;
 }
 
+function getEffectiveOffsetForProduct(product) {
+  const override = productOverrides[product];
+  if (override && (override.x != null || override.y != null)) {
+    return { x: override.x ?? 0, y: override.y ?? 0 };
+  }
+  return {
+    x: Number(document.getElementById('quickX')?.value || 0),
+    y: Number(document.getElementById('quickY')?.value || 0)
+  };
+}
+
 
 
 async function renderApplePencilMockupToCanvas(targetCanvas, forcedScalePercent = null) {
@@ -2525,6 +2553,7 @@ async function renderApplePencilMockupToCanvas(targetCanvas, forcedScalePercent 
   // but with a product-specific scale so the card does not stay shy/empty.
   return renderLayeredProductToCanvas(targetCanvas, {
     productName: 'apple pencil',
+    productKey: 'applepencil',
     scalePercent: forcedScalePercent || getEffectiveScaleForProduct('applepencil'),
 
     basePaths: [
@@ -2550,6 +2579,7 @@ async function renderApplePencilMockupToCanvas(targetCanvas, forcedScalePercent 
 async function renderFloorCushionMockupToCanvas(targetCanvas, forcedScalePercent = null) {
   return renderLayeredProductToCanvas(targetCanvas, {
     productName: 'floor cushion',
+    productKey: 'floorcushion',
     scalePercent: forcedScalePercent || getEffectiveScaleForProduct('floorcushion'),
 
     basePaths: [
@@ -2674,7 +2704,8 @@ async function renderGreetingCardMockupToCanvas(targetCanvas, mode = greetingCar
   } else {
     const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('greetingcard');
     const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
-    drawRepeatedTileLayer(pctx, tile, w, h, 0, 0);
+    const gcOffset = getEffectiveOffsetForProduct('greetingcard');
+    drawRepeatedTileLayer(pctx, tile, w, h, gcOffset.x / 100 * tile.width, gcOffset.y / 100 * tile.height);
   }
 
   pctx.globalCompositeOperation = 'destination-in';
@@ -2729,8 +2760,19 @@ async function renderQuickCard(product) {
   }
 }
 
+function syncPreviewControlsForProduct(product) {
+  const scaleEl = document.getElementById('previewScale');
+  const xEl = document.getElementById('previewX');
+  const yEl = document.getElementById('previewY');
+  if (scaleEl) scaleEl.value = getEffectiveScaleForProduct(product);
+  const offset = getEffectiveOffsetForProduct(product);
+  if (xEl) xEl.value = offset.x;
+  if (yEl) yEl.value = offset.y;
+}
+
 async function openProductPreview(product) {
   currentPreviewProduct = product;
+  syncPreviewControlsForProduct(product);
   const largeCanvas = document.getElementById('largePreviewCanvas');
   const placeholder = document.getElementById('previewPlaceholder');
   if (!largeCanvas) return;
@@ -2824,16 +2866,33 @@ document.getElementById('resetScaleBtn')?.addEventListener('click', () => {
   if (scaleEl) scaleEl.value = 80;
   if (xEl) xEl.value = 0;
   if (yEl) yEl.value = 0;
-  ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard'].forEach(product => {
-    const canvas = document.getElementById(product + 'QuickCanvas');
-    if (quickPatternImage && canvas && !canvas.classList.contains('hidden')) {
-      renderQuickCard(product);
-    }
-  });
-  const largeCanvas = document.getElementById('largePreviewCanvas');
-  if (quickPatternImage && largeCanvas && !largeCanvas.classList.contains('hidden') && currentPreviewProduct) {
-    openProductPreview(currentPreviewProduct);
+  Object.keys(productOverrides).forEach(key => delete productOverrides[key]);
+  reRenderVisibleQuickCards();
+  if (currentPreviewProduct) {
+    syncPreviewControlsForProduct(currentPreviewProduct);
+    refreshCurrentPreviewRender();
   }
+});
+
+['previewScale', 'previewX', 'previewY'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', () => {
+    if (!currentPreviewProduct) return;
+    const product = currentPreviewProduct;
+    productOverrides[product] = productOverrides[product] || {};
+    productOverrides[product].scale = Number(document.getElementById('previewScale').value);
+    productOverrides[product].x = Number(document.getElementById('previewX').value);
+    productOverrides[product].y = Number(document.getElementById('previewY').value);
+    refreshCurrentPreviewRender();
+    renderQuickCard(product);
+  });
+});
+
+document.getElementById('previewMatchGlobalBtn')?.addEventListener('click', () => {
+  if (!currentPreviewProduct) return;
+  delete productOverrides[currentPreviewProduct];
+  syncPreviewControlsForProduct(currentPreviewProduct);
+  refreshCurrentPreviewRender();
+  renderQuickCard(currentPreviewProduct);
 });
 
 const collectionTray = document.getElementById('collectionTray');
