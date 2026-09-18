@@ -428,6 +428,19 @@ button:active { transform: scale(0.98); }
   margin-bottom: 12px;
 }
 
+.category-filter {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.category-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+  border-color: transparent;
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -716,8 +729,19 @@ button:active { transform: scale(0.98); }
 .badge-editor-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
+}
+
+.badge-name-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: var(--panel2);
+  font-weight: 700;
+  font-size: 13px;
 }
 
 .preview-placeholder {
@@ -994,9 +1018,16 @@ input[type=text] {
             <div class="section-title">quick mock-ups</div>
             <div class="section-note">Simple batch previews. No collection tray, no colour pickers.</div>
 
+            <div class="category-filter" id="quickCategoryFilter">
+              <button class="secondary category-btn active" data-category="all" type="button">all</button>
+              <button class="secondary category-btn" data-category="drinkware" type="button">drinkware</button>
+              <button class="secondary category-btn" data-category="stationery" type="button">stationery &amp; desk</button>
+              <button class="secondary category-btn" data-category="home" type="button">home &amp; living</button>
+            </div>
+
             <div class="card-grid" id="quickGrid">
 
-              <article class="mock-card" data-product="mug">
+              <article class="mock-card" data-product="mug" data-category="drinkware">
             <button class="select-bubble" type="button" aria-label="select mug">✓</button>
             <div class="card-preview">
               <canvas id="mugQuickCanvas" class="quick-canvas hidden"></canvas>
@@ -1011,7 +1042,7 @@ input[type=text] {
             </div>
           </article>
 
-          <article class="mock-card" data-product="notebook">
+          <article class="mock-card" data-product="notebook" data-category="stationery">
             <button class="select-bubble" type="button" aria-label="select notebook">✓</button>
             <div class="card-preview">
               <canvas id="notebookQuickCanvas" class="quick-canvas hidden"></canvas>
@@ -1026,7 +1057,7 @@ input[type=text] {
             </div>
           </article>
 
-          <article class="mock-card" data-product="tumbler">
+          <article class="mock-card" data-product="tumbler" data-category="drinkware">
             <button class="select-bubble" type="button" aria-label="select tumbler">✓</button>
             <div class="card-preview">
               <canvas id="tumblerQuickCanvas" class="quick-canvas hidden"></canvas>
@@ -1041,7 +1072,7 @@ input[type=text] {
             </div>
           </article>
 
-          <article class="mock-card" data-product="floorcushion">
+          <article class="mock-card" data-product="floorcushion" data-category="home">
             <button class="select-bubble" type="button" aria-label="select floor cushion">✓</button>
             <div class="card-preview">
               <canvas id="floorcushionQuickCanvas" class="quick-canvas hidden"></canvas>
@@ -1056,7 +1087,7 @@ input[type=text] {
             </div>
           </article>
 
-          <article class="mock-card" data-product="applepencil">
+          <article class="mock-card" data-product="applepencil" data-category="stationery">
             <button class="select-bubble" type="button" aria-label="select apple pencil">✓</button>
             <div class="card-preview">
               <canvas id="applepencilQuickCanvas" class="quick-canvas hidden"></canvas>
@@ -1291,6 +1322,16 @@ input[type=text] {
       <input id="brandingLogoSize" type="range" min="8" max="30" value="16">
       <label>logo opacity</label>
       <input id="brandingLogoOpacity" type="range" min="20" max="100" value="90">
+
+      <label class="branding-check-row" style="margin-top:14px;">
+        <input type="checkbox" id="brandingLogoRecolorToggle">
+        <span>recolour logo (handy if it's white and the background is light)</span>
+      </label>
+      <div id="brandingLogoColorRow" class="hidden" style="display:flex; align-items:center; gap:10px;">
+        <input id="brandingLogoColor" type="color" value="#202020" style="flex:none; width:60px;">
+        <span style="color:var(--muted); font-size:12px;">every visible pixel of the logo is replaced with this colour, alpha shape kept.</span>
+      </div>
+
       <p style="color:var(--muted); font-size:12px; margin:10px 0 0;">📍 open any "preview" and drag the logo chip wherever you like — it remembers its spot.</p>
     </div>
 
@@ -1354,14 +1395,18 @@ themeNameBtn?.addEventListener('click', () => {
 
 const brandingState = {
   logoImage: null,
+  logoOriginalSrc: '',
+  logoRecolor: false,
+  logoColor: '#202020',
+  logoRecoloredImage: null,
   showLogo: false,
   logoX: 88,
   logoY: 90,
   logoSize: 16,
   logoOpacity: 90,
   badges: [
-    { id: 1, enabled: true, mode: 'text', text: 'DIGITAL DOWNLOAD · INSTANT FILE', image: null, imageSrc: '', x: 50, y: 92, size: 22, opacity: 100 },
-    { id: 2, enabled: true, mode: 'text', text: 'ON SALE', image: null, imageSrc: '', x: 14, y: 10, size: 22, opacity: 100 }
+    { id: 1, name: 'digital download', enabled: true, mode: 'text', text: 'DIGITAL DOWNLOAD · INSTANT FILE', image: null, imageSrc: '', x: 50, y: 92, size: 22, opacity: 100 },
+    { id: 2, name: 'sale', enabled: true, mode: 'text', text: 'ON SALE', image: null, imageSrc: '', x: 14, y: 10, size: 22, opacity: 100 }
   ]
 };
 let badgeIdCounter = 2;
@@ -1374,6 +1419,9 @@ const brandingLogoToggle = document.getElementById('brandingLogoToggle');
 const brandingLogoSize = document.getElementById('brandingLogoSize');
 const brandingLogoOpacity = document.getElementById('brandingLogoOpacity');
 const brandingLogoClearBtn = document.getElementById('brandingLogoClearBtn');
+const brandingLogoRecolorToggle = document.getElementById('brandingLogoRecolorToggle');
+const brandingLogoColorRow = document.getElementById('brandingLogoColorRow');
+const brandingLogoColor = document.getElementById('brandingLogoColor');
 const badgeListEl = document.getElementById('badgeList');
 const addBadgeBtn = document.getElementById('addBadgeBtn');
 const brandingMarkerLayer = document.getElementById('brandingMarkerLayer');
@@ -1397,8 +1445,13 @@ brandingLogoInput?.addEventListener('change', e => {
     const img = new Image();
     img.onload = () => {
       brandingState.logoImage = img;
+      brandingState.logoOriginalSrc = ev.target.result;
+      brandingState.logoRecolor = false;
+      brandingState.logoRecoloredImage = null;
       brandingState.showLogo = true;
       brandingLogoToggle.checked = true;
+      if (brandingLogoRecolorToggle) brandingLogoRecolorToggle.checked = false;
+      brandingLogoColorRow?.classList.add('hidden');
       brandingLogoPreview.src = ev.target.result;
       brandingLogoPreview.classList.add('visible');
       refreshBrandingMarkers();
@@ -1410,12 +1463,64 @@ brandingLogoInput?.addEventListener('change', e => {
 
 brandingLogoClearBtn?.addEventListener('click', () => {
   brandingState.logoImage = null;
+  brandingState.logoOriginalSrc = '';
+  brandingState.logoRecolor = false;
+  brandingState.logoRecoloredImage = null;
   brandingState.showLogo = false;
   brandingLogoToggle.checked = false;
+  if (brandingLogoRecolorToggle) brandingLogoRecolorToggle.checked = false;
+  brandingLogoColorRow?.classList.add('hidden');
   brandingLogoInput.value = '';
   brandingLogoPreview.src = '';
   brandingLogoPreview.classList.remove('visible');
   refreshBrandingMarkers();
+});
+
+function buildRecoloredImage(sourceImage, hexColor) {
+  return new Promise(resolve => {
+    const w = sourceImage.naturalWidth || sourceImage.width;
+    const h = sourceImage.naturalHeight || sourceImage.height;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(sourceImage, 0, 0, w, h);
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillStyle = hexColor;
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'source-over';
+
+    const recolored = new Image();
+    recolored.onload = () => resolve(recolored);
+    recolored.src = canvas.toDataURL('image/png');
+  });
+}
+
+async function refreshLogoRecolor() {
+  if (!brandingState.logoImage) return;
+
+  if (brandingState.logoRecolor) {
+    brandingState.logoRecoloredImage = await buildRecoloredImage(brandingState.logoImage, brandingState.logoColor);
+    brandingLogoPreview.src = brandingState.logoRecoloredImage.src;
+  } else {
+    brandingLogoPreview.src = brandingState.logoOriginalSrc;
+  }
+}
+
+brandingLogoRecolorToggle?.addEventListener('change', async () => {
+  if (brandingLogoRecolorToggle.checked && !brandingState.logoImage) {
+    showToastMessage('upload a logo first');
+    brandingLogoRecolorToggle.checked = false;
+    return;
+  }
+  brandingState.logoRecolor = brandingLogoRecolorToggle.checked;
+  brandingLogoColorRow?.classList.toggle('hidden', !brandingState.logoRecolor);
+  await refreshLogoRecolor();
+});
+
+brandingLogoColor?.addEventListener('input', async () => {
+  brandingState.logoColor = brandingLogoColor.value;
+  if (brandingState.logoRecolor) await refreshLogoRecolor();
 });
 
 brandingLogoToggle?.addEventListener('change', () => {
@@ -1447,10 +1552,8 @@ function renderBadgeList() {
     card.dataset.badgeId = badge.id;
     card.innerHTML = `
       <div class="badge-editor-head">
-        <label class="branding-check-row" style="margin:0;">
-          <input type="checkbox" class="badge-enabled-toggle" ${badge.enabled ? 'checked' : ''}>
-          <span>badge ${index + 1}</span>
-        </label>
+        <input type="checkbox" class="badge-enabled-toggle" ${badge.enabled ? 'checked' : ''} style="width:18px; height:18px; accent-color:var(--accent); flex:none;">
+        <input type="text" class="badge-name-input" value="${(badge.name || '').replace(/"/g, '&quot;')}" placeholder="badge ${index + 1} name">
         <button class="secondary badge-remove-btn" type="button">remove</button>
       </div>
 
@@ -1545,6 +1648,7 @@ badgeListEl?.addEventListener('input', e => {
   const badge = getBadgeFromEvent(e);
   if (!badge) return;
 
+  if (e.target.classList.contains('badge-name-input')) badge.name = e.target.value;
   if (e.target.classList.contains('badge-text-input')) badge.text = e.target.value;
   if (e.target.classList.contains('badge-size-input')) badge.size = Number(e.target.value);
   if (e.target.classList.contains('badge-opacity-input')) badge.opacity = Number(e.target.value);
@@ -1557,7 +1661,7 @@ addBadgeBtn?.addEventListener('click', () => {
     return;
   }
   badgeIdCounter++;
-  brandingState.badges.push({ id: badgeIdCounter, enabled: true, mode: 'text', text: 'NEW BADGE', image: null, imageSrc: '', x: 50, y: 50, size: 22, opacity: 100 });
+  brandingState.badges.push({ id: badgeIdCounter, name: '', enabled: true, mode: 'text', text: 'NEW BADGE', image: null, imageSrc: '', x: 50, y: 50, size: 22, opacity: 100 });
   renderBadgeList();
   refreshBrandingMarkers();
 });
@@ -1639,7 +1743,9 @@ function refreshBrandingMarkers() {
 
   brandingState.badges.forEach((badge, index) => {
     if (!badge.enabled || !badgeHasContent(badge)) return;
-    const label = badge.mode === 'image' ? ('badge ' + (index + 1)) : (badge.text.trim().slice(0, 20) || ('badge ' + (index + 1)));
+    const label = (badge.name || '').trim()
+      || (badge.mode === 'text' ? badge.text.trim().slice(0, 20) : '')
+      || ('badge ' + (index + 1));
     brandingMarkerLayer.appendChild(createBrandingMarker(label, badge.x, badge.y, (x, y) => {
       badge.x = x;
       badge.y = y;
@@ -1690,7 +1796,7 @@ function applyBrandingOverlay(sourceCanvas) {
   }
 
   if (needsLogo) {
-    const logo = brandingState.logoImage;
+    const logo = (brandingState.logoRecolor && brandingState.logoRecoloredImage) ? brandingState.logoRecoloredImage : brandingState.logoImage;
     const targetW = w * (brandingState.logoSize / 100);
     const aspect = (logo.naturalHeight || logo.height || 1) / (logo.naturalWidth || logo.width || 1);
     const targetH = targetW * aspect;
@@ -2782,6 +2888,19 @@ document.getElementById('selectAllQuickBtn').addEventListener('click', () => {
 document.getElementById('deselectAllQuickBtn').addEventListener('click', () => {
   quickCards.forEach(card => card.classList.remove('selected'));
   updateQuickCount();
+});
+
+document.querySelectorAll('#quickCategoryFilter .category-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#quickCategoryFilter .category-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const category = btn.dataset.category;
+    quickCards.forEach(card => {
+      const matches = category === 'all' || card.dataset.category === category;
+      card.classList.toggle('hidden', !matches);
+    });
+  });
 });
 
 document.getElementById('downloadQuickBtn').addEventListener('click', async () => {
