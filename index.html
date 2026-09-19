@@ -1266,6 +1266,21 @@ input[type=text] {
             </div>
           </article>
 
+          <article class="mock-card" data-product="swimsuit" data-category="beachwear">
+            <button class="select-bubble" type="button" aria-label="select swimsuit">✓</button>
+            <div class="card-preview">
+              <canvas id="swimsuitQuickCanvas" class="quick-canvas hidden"></canvas>
+              <div class="placeholder-art" id="swimsuitPlaceholder"><span class="big">🩱</span>swimsuit preview</div>
+            </div>
+            <div class="card-footer">
+              <div>
+                <h3>swimsuit mock-up</h3>
+                <small>beachwear · lining colour is adjustable</small>
+              </div>
+              <button class="secondary preview-btn" data-kind="quick" data-name="swimsuit mock-up" type="button">preview</button>
+            </div>
+          </article>
+
             </div>
           </section>
 
@@ -1426,6 +1441,12 @@ input[type=text] {
           <label>inside lining colour</label>
           <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">the inside of the fabric is a solid colour in real life — pick whatever coordinates with your pattern.</p>
           <input type="color" id="bikiniLiningColorInput" value="#ffffff">
+        </div>
+
+        <div id="swimsuitLiningControls" class="hidden" style="margin-top:14px;">
+          <label>inside lining colour</label>
+          <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">the strap and leg-opening linings are a solid colour in real life — pick whatever coordinates with your pattern.</p>
+          <input type="color" id="swimsuitLiningColorInput" value="#ffffff">
         </div>
       </div>
 
@@ -2085,7 +2106,7 @@ function refreshCurrentPreviewRender() {
   }
 }
 
-const ALL_QUICK_PRODUCTS = ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset'];
+const ALL_QUICK_PRODUCTS = ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset','swimsuit'];
 
 function yieldToBrowser() {
   return new Promise(resolve => setTimeout(resolve, 0));
@@ -3300,6 +3321,137 @@ async function renderBikiniSetMockupToCanvas(targetCanvas, forcedScalePercent = 
   return true;
 }
 
+let swimsuitBaseImage = null;
+let swimsuitPatternMaskImage = null;
+let swimsuitLiningTopLeftImage = null;
+let swimsuitLiningTopRightImage = null;
+let swimsuitLiningLegLeftImage = null;
+let swimsuitLiningLegRightImage = null;
+let swimsuitLiningColor = '#ffffff';
+
+async function loadSwimsuitAssets() {
+  if (!swimsuitBaseImage) {
+    swimsuitBaseImage = await loadAssetImageFromCandidates([
+      './SwimsuitMockup.jpg',
+      './mockups/SwimsuitMockup.jpg'
+    ], 'swimsuit base');
+  }
+  if (!swimsuitPatternMaskImage) {
+    swimsuitPatternMaskImage = await loadAssetImageFromCandidates([
+      './SwimsuitPatternMask.png',
+      './mockups/SwimsuitPatternMask.png'
+    ], 'swimsuit pattern mask');
+  }
+  if (!swimsuitLiningTopLeftImage) {
+    swimsuitLiningTopLeftImage = await loadAssetImageFromCandidates([
+      './SwimsuitLiningTopLeft.png',
+      './mockups/SwimsuitLiningTopLeft.png'
+    ], 'swimsuit top-left lining mask');
+  }
+  if (!swimsuitLiningTopRightImage) {
+    swimsuitLiningTopRightImage = await loadAssetImageFromCandidates([
+      './SwimsuitLiningTopRight.png',
+      './mockups/SwimsuitLiningTopRight.png'
+    ], 'swimsuit top-right lining mask');
+  }
+  if (!swimsuitLiningLegLeftImage) {
+    swimsuitLiningLegLeftImage = await loadAssetImageFromCandidates([
+      './SwimsuitLiningLegLeft.png',
+      './mockups/SwimsuitLiningLegLeft.png'
+    ], 'swimsuit leg-left lining mask');
+  }
+  if (!swimsuitLiningLegRightImage) {
+    swimsuitLiningLegRightImage = await loadAssetImageFromCandidates([
+      './SwimsuitLiningLegRight.png',
+      './mockups/SwimsuitLiningLegRight.png'
+    ], 'swimsuit leg-right lining mask');
+  }
+  return {
+    base: swimsuitBaseImage,
+    patternMask: swimsuitPatternMaskImage,
+    liningMasks: [swimsuitLiningTopLeftImage, swimsuitLiningTopRightImage, swimsuitLiningLegLeftImage, swimsuitLiningLegRightImage]
+  };
+}
+
+async function renderSwimsuitMockupToCanvas(targetCanvas, forcedScalePercent = null) {
+  if (!quickPatternImage) {
+    showToastMessage('upload a pattern first');
+    return false;
+  }
+
+  const { base, patternMask, liningMasks } = await loadSwimsuitAssets();
+  const w = base.naturalWidth || base.width;
+  const h = base.naturalHeight || base.height;
+
+  targetCanvas.width = w;
+  targetCanvas.height = h;
+  const ctx = targetCanvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(base, 0, 0, w, h);
+
+  // the 4 inside pieces (both strap linings + both leg openings) are the
+  // same solid-colour lining fabric, just split into separate masks by
+  // what the camera can actually see, so they share one union mask
+  const combinedLiningMask = document.createElement('canvas');
+  combinedLiningMask.width = w;
+  combinedLiningMask.height = h;
+  const cmctx = combinedLiningMask.getContext('2d');
+  liningMasks.forEach(maskImg => cmctx.drawImage(maskImg, 0, 0, w, h));
+
+  const liningLayer = document.createElement('canvas');
+  liningLayer.width = w;
+  liningLayer.height = h;
+  const lctx = liningLayer.getContext('2d');
+  lctx.fillStyle = swimsuitLiningColor;
+  lctx.fillRect(0, 0, w, h);
+  lctx.globalCompositeOperation = 'destination-in';
+  lctx.drawImage(combinedLiningMask, 0, 0);
+  lctx.globalCompositeOperation = 'source-over';
+
+  ctx.save();
+  ctx.globalAlpha = 0.88;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(liningLayer, 0, 0);
+  ctx.restore();
+
+  // the outer fabric shows the uploaded seamless pattern
+  const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('swimsuit');
+  const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
+  const offset = getEffectiveOffsetForProduct('swimsuit');
+
+  const patternLayer = document.createElement('canvas');
+  patternLayer.width = w;
+  patternLayer.height = h;
+  const pctx = patternLayer.getContext('2d');
+  pctx.imageSmoothingEnabled = true;
+  pctx.imageSmoothingQuality = 'high';
+  drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
+
+  pctx.globalCompositeOperation = 'destination-in';
+  pctx.drawImage(patternMask, 0, 0, w, h);
+  pctx.globalCompositeOperation = 'source-over';
+
+  boostPatternLayerContrast(patternLayer, 1.10, 1.05);
+
+  ctx.save();
+  ctx.globalAlpha = 0.90;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.14;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  return true;
+}
+
 async function renderProductToCanvas(product, targetCanvas) {
   window.__currentProductScale = getEffectiveScaleForProduct(product);
 
@@ -3313,6 +3465,7 @@ async function renderProductToCanvas(product, targetCanvas) {
   if (product === 'buckethat') return renderBucketHatMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'beachtowel') return renderBeachTowelMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'bikiniset') return renderBikiniSetMockupToCanvas(targetCanvas, window.__currentProductScale);
+  if (product === 'swimsuit') return renderSwimsuitMockupToCanvas(targetCanvas, window.__currentProductScale);
 
   return false;
 }
@@ -3399,7 +3552,7 @@ function setupUpload(inputId, cardId, stripId, thumbId, fileNameId) {
         quickPatternImage = new Image();
         quickPatternImage.onload = () => {
           buildPatternWorkingCopy(quickPatternImage);
-          ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset'].forEach(product => {
+          ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset','swimsuit'].forEach(product => {
             const canvas = document.getElementById(product + 'QuickCanvas');
             const placeholder = document.getElementById(product + 'Placeholder');
             if (canvas) canvas.classList.add('hidden');
@@ -3427,7 +3580,7 @@ document.getElementById('quickReplaceBtn').addEventListener('click', () => {
   quickPatternSrc = '';
   document.getElementById('quickUploadStrip').classList.add('hidden');
   document.getElementById('quickUploadCard').classList.remove('hidden');
-  ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset'].forEach(product => {
+  ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset','swimsuit'].forEach(product => {
     document.getElementById(product + 'QuickCanvas')?.classList.add('hidden');
     document.getElementById(product + 'Placeholder')?.classList.remove('hidden');
   });
@@ -3792,9 +3945,17 @@ document.getElementById('downloadQuickBtn').addEventListener('click', async () =
     }
   }
 
-  const notReady = selected.filter(p => p !== 'mug' && p !== 'greetingcard' && p !== 'kitchentowel' && p !== 'buckethat' && p !== 'beachtowel' && p !== 'bikiniset');
+  if (selected.includes('swimsuit')) {
+    const swimsuitCanvas = document.getElementById('swimsuitQuickCanvas');
+    if (quickPatternImage && swimsuitCanvas) {
+      if (swimsuitCanvas.classList.contains('hidden')) await renderQuickCard('swimsuit');
+      downloadCanvasPNG(swimsuitCanvas, 'swimsuit_mockup.png');
+    }
+  }
+
+  const notReady = selected.filter(p => p !== 'mug' && p !== 'greetingcard' && p !== 'kitchentowel' && p !== 'buckethat' && p !== 'beachtowel' && p !== 'bikiniset' && p !== 'swimsuit');
   if (notReady.length) {
-    alert('Mug, greeting card, kitchen towel, bucket hat, beach towel and bikini set download now. ' + notReady.join(', ') + ' engines are still placeholders.');
+    alert('Mug, greeting card, kitchen towel, bucket hat, beach towel, bikini set and swimsuit download now. ' + notReady.join(', ') + ' engines are still placeholders.');
   }
 });
 
@@ -4099,6 +4260,7 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
       document.getElementById('notebookSideControls')?.classList.add('hidden');
       document.getElementById('greetingCardModeControls')?.classList.add('hidden');
       document.getElementById('bikiniLiningControls')?.classList.add('hidden');
+      document.getElementById('swimsuitLiningControls')?.classList.add('hidden');
     }
 
     previewIcon.textContent = creative ? '✿' : '✨';
@@ -4112,12 +4274,13 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
     if (previewPlaceholder) previewPlaceholder.classList.remove('hidden');
 
     if (!creative) {
-      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : name.includes('greeting card') ? 'greetingcard' : name.includes('kitchen towel') ? 'kitchentowel' : name.includes('bucket hat') ? 'buckethat' : name.includes('beach towel') ? 'beachtowel' : name.includes('bikini set') ? 'bikiniset' : '';
+      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : name.includes('greeting card') ? 'greetingcard' : name.includes('kitchen towel') ? 'kitchentowel' : name.includes('bucket hat') ? 'buckethat' : name.includes('beach towel') ? 'beachtowel' : name.includes('bikini set') ? 'bikiniset' : name.includes('swimsuit') ? 'swimsuit' : '';
       currentPreviewProduct = product;
       currentPreviewScene = '';
       document.getElementById('notebookSideControls')?.classList.toggle('hidden', product !== 'notebook');
       document.getElementById('greetingCardModeControls')?.classList.toggle('hidden', product !== 'greetingcard');
       document.getElementById('bikiniLiningControls')?.classList.toggle('hidden', product !== 'bikiniset');
+      document.getElementById('swimsuitLiningControls')?.classList.toggle('hidden', product !== 'swimsuit');
       if (product) openProductPreview(product);
     } else {
       currentPreviewProduct = '';
@@ -4186,6 +4349,18 @@ document.getElementById('bikiniLiningColorInput')?.addEventListener('input', e =
     if (currentPreviewProduct === 'bikiniset') {
       openProductPreview('bikiniset');
       renderQuickCard('bikiniset');
+    }
+  }, 150);
+});
+
+let swimsuitLiningDebounceTimer = null;
+document.getElementById('swimsuitLiningColorInput')?.addEventListener('input', e => {
+  swimsuitLiningColor = e.target.value;
+  clearTimeout(swimsuitLiningDebounceTimer);
+  swimsuitLiningDebounceTimer = setTimeout(() => {
+    if (currentPreviewProduct === 'swimsuit') {
+      openProductPreview('swimsuit');
+      renderQuickCard('swimsuit');
     }
   }, 150);
 });
