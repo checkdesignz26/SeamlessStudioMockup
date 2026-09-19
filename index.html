@@ -1251,6 +1251,21 @@ input[type=text] {
             </div>
           </article>
 
+          <article class="mock-card" data-product="bikiniset" data-category="beachwear">
+            <button class="select-bubble" type="button" aria-label="select bikini set">✓</button>
+            <div class="card-preview">
+              <canvas id="bikinisetQuickCanvas" class="quick-canvas hidden"></canvas>
+              <div class="placeholder-art" id="bikinisetPlaceholder"><span class="big">👙</span>bikini set preview</div>
+            </div>
+            <div class="card-footer">
+              <div>
+                <h3>bikini set mock-up</h3>
+                <small>beachwear · lining colour is adjustable</small>
+              </div>
+              <button class="secondary preview-btn" data-kind="quick" data-name="bikini set mock-up" type="button">preview</button>
+            </div>
+          </article>
+
             </div>
           </section>
 
@@ -1405,6 +1420,12 @@ input[type=text] {
             <button class="secondary greeting-card-mode-btn active" data-mode="repeat" type="button">seamless pattern</button>
             <button class="secondary greeting-card-mode-btn" data-mode="single" type="button">single design (no repeat)</button>
           </div>
+        </div>
+
+        <div id="bikiniLiningControls" class="hidden" style="margin-top:14px;">
+          <label>inside lining colour</label>
+          <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">the inside of the fabric is a solid colour in real life — pick whatever coordinates with your pattern.</p>
+          <input type="color" id="bikiniLiningColorInput" value="#ffffff">
         </div>
       </div>
 
@@ -2064,7 +2085,7 @@ function refreshCurrentPreviewRender() {
   }
 }
 
-const ALL_QUICK_PRODUCTS = ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel'];
+const ALL_QUICK_PRODUCTS = ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset'];
 
 function yieldToBrowser() {
   return new Promise(resolve => setTimeout(resolve, 0));
@@ -3181,6 +3202,104 @@ async function renderBeachTowelMockupToCanvas(targetCanvas, forcedScalePercent =
   return true;
 }
 
+let bikiniBaseImage = null;
+let bikiniPatternMaskImage = null;
+let bikiniLiningMaskImage = null;
+let bikiniLiningColor = '#ffffff';
+
+async function loadBikiniAssets() {
+  if (!bikiniBaseImage) {
+    bikiniBaseImage = await loadAssetImageFromCandidates([
+      './BikiniSetMockup.jpg',
+      './mockups/BikiniSetMockup.jpg'
+    ], 'bikini set base');
+  }
+  if (!bikiniPatternMaskImage) {
+    bikiniPatternMaskImage = await loadAssetImageFromCandidates([
+      './BikiniSetPatternMask.png',
+      './mockups/BikiniSetPatternMask.png'
+    ], 'bikini set pattern mask');
+  }
+  if (!bikiniLiningMaskImage) {
+    bikiniLiningMaskImage = await loadAssetImageFromCandidates([
+      './BikiniSetLiningMask.png',
+      './mockups/BikiniSetLiningMask.png'
+    ], 'bikini set lining mask');
+  }
+  return { base: bikiniBaseImage, patternMask: bikiniPatternMaskImage, liningMask: bikiniLiningMaskImage };
+}
+
+async function renderBikiniSetMockupToCanvas(targetCanvas, forcedScalePercent = null) {
+  if (!quickPatternImage) {
+    showToastMessage('upload a pattern first');
+    return false;
+  }
+
+  const { base, patternMask, liningMask } = await loadBikiniAssets();
+  const w = base.naturalWidth || base.width;
+  const h = base.naturalHeight || base.height;
+
+  targetCanvas.width = w;
+  targetCanvas.height = h;
+  const ctx = targetCanvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(base, 0, 0, w, h);
+
+  // the inside lining is a solid colour fabric in real life, not a print
+  const liningLayer = document.createElement('canvas');
+  liningLayer.width = w;
+  liningLayer.height = h;
+  const lctx = liningLayer.getContext('2d');
+  lctx.fillStyle = bikiniLiningColor;
+  lctx.fillRect(0, 0, w, h);
+  lctx.globalCompositeOperation = 'destination-in';
+  lctx.drawImage(liningMask, 0, 0, w, h);
+  lctx.globalCompositeOperation = 'source-over';
+
+  ctx.save();
+  ctx.globalAlpha = 0.88;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(liningLayer, 0, 0);
+  ctx.restore();
+
+  // the outer fabric shows the uploaded seamless pattern
+  const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('bikiniset');
+  const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
+  const offset = getEffectiveOffsetForProduct('bikiniset');
+
+  const patternLayer = document.createElement('canvas');
+  patternLayer.width = w;
+  patternLayer.height = h;
+  const pctx = patternLayer.getContext('2d');
+  pctx.imageSmoothingEnabled = true;
+  pctx.imageSmoothingQuality = 'high';
+  drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
+
+  pctx.globalCompositeOperation = 'destination-in';
+  pctx.drawImage(patternMask, 0, 0, w, h);
+  pctx.globalCompositeOperation = 'source-over';
+
+  boostPatternLayerContrast(patternLayer, 1.10, 1.05);
+
+  ctx.save();
+  ctx.globalAlpha = 0.90;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.14;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  return true;
+}
+
 async function renderProductToCanvas(product, targetCanvas) {
   window.__currentProductScale = getEffectiveScaleForProduct(product);
 
@@ -3193,6 +3312,7 @@ async function renderProductToCanvas(product, targetCanvas) {
   if (product === 'kitchentowel') return renderKitchenTowelMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'buckethat') return renderBucketHatMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'beachtowel') return renderBeachTowelMockupToCanvas(targetCanvas, window.__currentProductScale);
+  if (product === 'bikiniset') return renderBikiniSetMockupToCanvas(targetCanvas, window.__currentProductScale);
 
   return false;
 }
@@ -3279,7 +3399,7 @@ function setupUpload(inputId, cardId, stripId, thumbId, fileNameId) {
         quickPatternImage = new Image();
         quickPatternImage.onload = () => {
           buildPatternWorkingCopy(quickPatternImage);
-          ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel'].forEach(product => {
+          ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset'].forEach(product => {
             const canvas = document.getElementById(product + 'QuickCanvas');
             const placeholder = document.getElementById(product + 'Placeholder');
             if (canvas) canvas.classList.add('hidden');
@@ -3307,7 +3427,7 @@ document.getElementById('quickReplaceBtn').addEventListener('click', () => {
   quickPatternSrc = '';
   document.getElementById('quickUploadStrip').classList.add('hidden');
   document.getElementById('quickUploadCard').classList.remove('hidden');
-  ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel'].forEach(product => {
+  ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset'].forEach(product => {
     document.getElementById(product + 'QuickCanvas')?.classList.add('hidden');
     document.getElementById(product + 'Placeholder')?.classList.remove('hidden');
   });
@@ -3664,9 +3784,17 @@ document.getElementById('downloadQuickBtn').addEventListener('click', async () =
     }
   }
 
-  const notReady = selected.filter(p => p !== 'mug' && p !== 'greetingcard' && p !== 'kitchentowel' && p !== 'buckethat' && p !== 'beachtowel');
+  if (selected.includes('bikiniset')) {
+    const bikiniCanvas = document.getElementById('bikinisetQuickCanvas');
+    if (quickPatternImage && bikiniCanvas) {
+      if (bikiniCanvas.classList.contains('hidden')) await renderQuickCard('bikiniset');
+      downloadCanvasPNG(bikiniCanvas, 'bikini_set_mockup.png');
+    }
+  }
+
+  const notReady = selected.filter(p => p !== 'mug' && p !== 'greetingcard' && p !== 'kitchentowel' && p !== 'buckethat' && p !== 'beachtowel' && p !== 'bikiniset');
   if (notReady.length) {
-    alert('Mug, greeting card, kitchen towel, bucket hat and beach towel download now. ' + notReady.join(', ') + ' engines are still placeholders.');
+    alert('Mug, greeting card, kitchen towel, bucket hat, beach towel and bikini set download now. ' + notReady.join(', ') + ' engines are still placeholders.');
   }
 });
 
@@ -3970,6 +4098,7 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
     if (creative) {
       document.getElementById('notebookSideControls')?.classList.add('hidden');
       document.getElementById('greetingCardModeControls')?.classList.add('hidden');
+      document.getElementById('bikiniLiningControls')?.classList.add('hidden');
     }
 
     previewIcon.textContent = creative ? '✿' : '✨';
@@ -3983,11 +4112,12 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
     if (previewPlaceholder) previewPlaceholder.classList.remove('hidden');
 
     if (!creative) {
-      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : name.includes('greeting card') ? 'greetingcard' : name.includes('kitchen towel') ? 'kitchentowel' : name.includes('bucket hat') ? 'buckethat' : name.includes('beach towel') ? 'beachtowel' : '';
+      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : name.includes('greeting card') ? 'greetingcard' : name.includes('kitchen towel') ? 'kitchentowel' : name.includes('bucket hat') ? 'buckethat' : name.includes('beach towel') ? 'beachtowel' : name.includes('bikini set') ? 'bikiniset' : '';
       currentPreviewProduct = product;
       currentPreviewScene = '';
       document.getElementById('notebookSideControls')?.classList.toggle('hidden', product !== 'notebook');
       document.getElementById('greetingCardModeControls')?.classList.toggle('hidden', product !== 'greetingcard');
+      document.getElementById('bikiniLiningControls')?.classList.toggle('hidden', product !== 'bikiniset');
       if (product) openProductPreview(product);
     } else {
       currentPreviewProduct = '';
@@ -4046,6 +4176,18 @@ document.querySelectorAll('.greeting-card-mode-btn').forEach(btn => {
       renderQuickCard('greetingcard');
     }
   });
+});
+
+let bikiniLiningDebounceTimer = null;
+document.getElementById('bikiniLiningColorInput')?.addEventListener('input', e => {
+  bikiniLiningColor = e.target.value;
+  clearTimeout(bikiniLiningDebounceTimer);
+  bikiniLiningDebounceTimer = setTimeout(() => {
+    if (currentPreviewProduct === 'bikiniset') {
+      openProductPreview('bikiniset');
+      renderQuickCard('bikiniset');
+    }
+  }, 150);
 });
 
 document.getElementById('downloadPreviewBtn')?.addEventListener('click', () => {
