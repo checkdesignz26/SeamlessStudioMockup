@@ -2064,16 +2064,33 @@ function refreshCurrentPreviewRender() {
   }
 }
 
+const ALL_QUICK_PRODUCTS = ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel'];
+
+function yieldToBrowser() {
+  return new Promise(resolve => setTimeout(resolve, 0));
+}
+
+// Rendering every product's full compositing pipeline back-to-back in one
+// synchronous burst piles up several full-resolution canvases per product
+// with no chance for the browser to reclaim memory in between — exactly
+// what crashes a memory-constrained mobile tab. Awaiting each one with a
+// short yield keeps peak memory to roughly one product at a time.
+async function renderQuickCardsSequentially(products) {
+  for (const product of products) {
+    await renderQuickCard(product);
+    await yieldToBrowser();
+  }
+}
+
 // Keeps every already-rendered quick-mode card (and the bedding card) in
 // sync after a branding change, the same way the global scale panel does.
-function reRenderVisibleQuickCards() {
-  ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel'].forEach(product => {
+async function reRenderVisibleQuickCards() {
+  const visibleProducts = ALL_QUICK_PRODUCTS.filter(product => {
     const canvas = document.getElementById(product + 'QuickCanvas');
-    if (quickPatternImage && canvas && !canvas.classList.contains('hidden')) {
-      renderQuickCard(product);
-    }
+    return quickPatternImage && canvas && !canvas.classList.contains('hidden');
   });
-  if (trayPatterns.length && trayPatterns[0].img) renderBeddingCard();
+  await renderQuickCardsSequentially(visibleProducts);
+  if (trayPatterns.length && trayPatterns[0].img) await renderBeddingCard();
 }
 
 // Call after any branding *setting* changes (not from within the render
@@ -2166,20 +2183,43 @@ function highQualityDownscale(sourceImage, targetW, targetH) {
   return out;
 }
 
+// Rendering 9 products means every "generate" click would otherwise decode
+// and progressively downscale the same multi-megapixel upload nine times.
+// A single ~900px working copy, built once per upload, is plenty of source
+// detail for any product's tile (the biggest tile is well under that) and
+// cuts repeated CPU/memory work to almost nothing — the difference between
+// this staying smooth and crashing a memory-constrained mobile tab.
+let quickPatternWorkingCanvas = null;
+
+function buildPatternWorkingCopy(sourceImage) {
+  const w = sourceImage.naturalWidth || sourceImage.width || 1200;
+  const h = sourceImage.naturalHeight || sourceImage.height || 1200;
+  const cap = 900;
+
+  if (Math.max(w, h) <= cap) {
+    quickPatternWorkingCanvas = null;
+    return;
+  }
+
+  const scale = cap / Math.max(w, h);
+  quickPatternWorkingCanvas = highQualityDownscale(sourceImage, Math.round(w * scale), Math.round(h * scale));
+}
+
 function createPatternTileCanvas(sourceImage, scalePercent = 100) {
   const scale = Math.max(0.18, Math.min(3.2, Number(scalePercent || 100) / 100));
+  const effectiveSource = (sourceImage === quickPatternImage && quickPatternWorkingCanvas) ? quickPatternWorkingCanvas : sourceImage;
 
   // Smaller base tile = visible repeat on product mock-ups.
   // This avoids the "single sticker strip" look when users upload large 3600px pattern tiles.
   const baseTileSize = 210;
-  const sourceW = sourceImage.naturalWidth || sourceImage.width || 1200;
-  const sourceH = sourceImage.naturalHeight || sourceImage.height || 1200;
+  const sourceW = effectiveSource.naturalWidth || effectiveSource.width || 1200;
+  const sourceH = effectiveSource.naturalHeight || effectiveSource.height || 1200;
   const aspect = sourceH / Math.max(1, sourceW);
 
   const targetW = Math.max(70, Math.round(baseTileSize * scale));
   const targetH = Math.max(70, Math.round(baseTileSize * aspect * scale));
 
-  return highQualityDownscale(sourceImage, targetW, targetH);
+  return highQualityDownscale(effectiveSource, targetW, targetH);
 }
 
 function drawRepeatedTileLayer(ctx, tile, canvasW, canvasH, offsetXPx = 0, offsetYPx = 0) {
@@ -3238,6 +3278,7 @@ function setupUpload(inputId, cardId, stripId, thumbId, fileNameId) {
         quickPatternSrc = ev.target.result;
         quickPatternImage = new Image();
         quickPatternImage.onload = () => {
+          buildPatternWorkingCopy(quickPatternImage);
           ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel'].forEach(product => {
             const canvas = document.getElementById(product + 'QuickCanvas');
             const placeholder = document.getElementById(product + 'Placeholder');
@@ -3865,20 +3906,12 @@ async function generateLookbookPDF() {
 document.getElementById('downloadLookbookBtn')?.addEventListener('click', openLookbookSettings);
 document.getElementById('downloadLookbookBtnCreative')?.addEventListener('click', openLookbookSettings);
 
-document.getElementById('generateQuickBtn').addEventListener('click', () => {
+document.getElementById('generateQuickBtn').addEventListener('click', async () => {
   if (!quickPatternImage) {
     alert('upload a pattern first');
     return;
   }
-  renderQuickCard('mug');
-  renderQuickCard('notebook');
-  renderQuickCard('tumbler');
-  renderQuickCard('floorcushion');
-  renderQuickCard('applepencil');
-  renderQuickCard('greetingcard');
-  renderQuickCard('kitchentowel');
-  renderQuickCard('buckethat');
-  renderQuickCard('beachtowel');
+  await renderQuickCardsSequentially(ALL_QUICK_PRODUCTS);
 });
 
 const previewOverlay = document.getElementById('previewOverlay');
@@ -3975,20 +4008,19 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
 });
 
 
+let quickSliderDebounceTimer = null;
 ['quickScale', 'quickX', 'quickY'].forEach(id => {
   const el = document.getElementById(id);
   if (!el) return;
   el.addEventListener('input', () => {
-    ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel'].forEach(product => {
-      const canvas = document.getElementById(product + 'QuickCanvas');
-      if (quickPatternImage && canvas && !canvas.classList.contains('hidden')) {
-        renderQuickCard(product);
+    clearTimeout(quickSliderDebounceTimer);
+    quickSliderDebounceTimer = setTimeout(async () => {
+      await reRenderVisibleQuickCards();
+      const largeCanvas = document.getElementById('largePreviewCanvas');
+      if (quickPatternImage && largeCanvas && !largeCanvas.classList.contains('hidden') && currentPreviewProduct) {
+        openProductPreview(currentPreviewProduct);
       }
-    });
-    const largeCanvas = document.getElementById('largePreviewCanvas');
-    if (quickPatternImage && largeCanvas && !largeCanvas.classList.contains('hidden') && currentPreviewProduct) {
-      openProductPreview(currentPreviewProduct);
-    }
+    }, 150);
   });
 });
 
