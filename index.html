@@ -1063,6 +1063,7 @@ input[type=text] {
               <button class="secondary" id="selectAllQuickBtn" type="button">select all</button>
               <button class="secondary" id="deselectAllQuickBtn" type="button">deselect all</button>
               <button class="orange" id="downloadQuickBtn" type="button">download selected</button>
+              <button class="secondary" id="downloadLookbookBtn" type="button">📖 lookbook PDF</button>
               <span class="count-pill" id="quickSelectedCount">0 selected</span>
             </div>
           </section>
@@ -1237,6 +1238,7 @@ input[type=text] {
             </div>
             <div class="action-right">
               <button class="orange" id="downloadCreativeBtn" type="button">download selected</button>
+              <button class="secondary" id="downloadLookbookBtnCreative" type="button">📖 lookbook PDF</button>
               <span class="count-pill" id="creativeSelectedCount">0 selected</span>
             </div>
           </section>
@@ -1395,6 +1397,7 @@ input[type=text] {
   </div>
 </aside>
 
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script>
 const quickMode = document.getElementById('quickMode');
 const creativeMode = document.getElementById('creativeMode');
@@ -3422,6 +3425,111 @@ document.getElementById('downloadCreativeBtn')?.addEventListener('click', async 
     alert('Bedding scene downloads now. ' + notReady.join(', ') + ' scenes are still placeholders.');
   }
 });
+
+/* ---------- lookbook PDF: combines every selected mock-up + scene ---------- */
+
+function imageToPngDataUrl(img) {
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth || img.width;
+  c.height = img.naturalHeight || img.height;
+  c.getContext('2d').drawImage(img, 0, 0);
+  return c.toDataURL('image/png');
+}
+
+async function collectLookbookPages() {
+  const pages = [];
+
+  const quickSelected = [...document.querySelectorAll('.mock-card.selected')];
+  for (const card of quickSelected) {
+    const product = card.dataset.product;
+    const canvas = document.getElementById(product + 'QuickCanvas');
+    if (!quickPatternImage || !canvas) continue;
+    if (canvas.classList.contains('hidden')) await renderQuickCard(product);
+    if (canvas.classList.contains('hidden')) continue;
+    const title = card.querySelector('h3')?.textContent?.trim() || product;
+    pages.push({ canvas, title });
+  }
+
+  const sceneSelected = [...document.querySelectorAll('.scene-card.selected')];
+  for (const card of sceneSelected) {
+    if (card.dataset.scene !== 'bedding') continue;
+    const canvas = document.getElementById('beddingQuickCanvas');
+    if (!trayPatterns.length || !trayPatterns[0].img || !canvas) continue;
+    if (canvas.classList.contains('hidden')) await renderBeddingCard();
+    if (canvas.classList.contains('hidden')) continue;
+    const title = card.querySelector('h3')?.textContent?.trim() || 'bedding scene';
+    pages.push({ canvas, title });
+  }
+
+  return pages;
+}
+
+async function downloadLookbookPDF() {
+  if (!window.jspdf) {
+    showToastMessage('the lookbook library is still loading — give it a second and try again.');
+    return;
+  }
+
+  const pages = await collectLookbookPages();
+  if (!pages.length) {
+    alert('select at least one mock-up or scene first (use the ✓ on any card), then try the lookbook again.');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 56;
+
+  doc.setFillColor(16, 24, 39);
+  doc.rect(0, 0, pageW, pageH, 'F');
+
+  let coverY = pageH / 2 - 40;
+  if (brandingState.showLogo && brandingState.logoImage) {
+    const logo = (brandingState.logoRecolor && brandingState.logoRecoloredImage) ? brandingState.logoRecoloredImage : brandingState.logoImage;
+    const logoW = 130;
+    const logoH = logoW * ((logo.naturalHeight || logo.height || 1) / (logo.naturalWidth || logo.width || 1));
+    doc.addImage(imageToPngDataUrl(logo), 'PNG', pageW / 2 - logoW / 2, coverY - logoH - 30, logoW, logoH);
+  }
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(30);
+  doc.text('Pattern Collection', pageW / 2, coverY, { align: 'center' });
+
+  doc.setFontSize(13);
+  doc.setTextColor(190, 190, 205);
+  const dateStr = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  doc.text(pages.length + ' mock-up' + (pages.length === 1 ? '' : 's') + '  ·  ' + dateStr, pageW / 2, coverY + 26, { align: 'center' });
+
+  pages.forEach((page, index) => {
+    doc.addPage();
+    const availW = pageW - margin * 2;
+    const availH = pageH - margin * 2 - 50;
+
+    const canvas = page.canvas;
+    const scale = Math.min(availW / canvas.width, availH / canvas.height);
+    const drawW = canvas.width * scale;
+    const drawH = canvas.height * scale;
+    const x = (pageW - drawW) / 2;
+    const y = margin;
+
+    doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, y, drawW, drawH);
+
+    doc.setTextColor(40, 40, 50);
+    doc.setFontSize(15);
+    doc.text(page.title, pageW / 2, y + drawH + 30, { align: 'center' });
+
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 160);
+    doc.text((index + 1) + ' / ' + pages.length, pageW - margin, pageH - 24, { align: 'right' });
+  });
+
+  doc.save('pattern-collection-lookbook.pdf');
+}
+
+document.getElementById('downloadLookbookBtn')?.addEventListener('click', downloadLookbookPDF);
+document.getElementById('downloadLookbookBtnCreative')?.addEventListener('click', downloadLookbookPDF);
 
 document.getElementById('generateQuickBtn').addEventListener('click', () => {
   if (!quickPatternImage) {
