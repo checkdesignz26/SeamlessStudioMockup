@@ -853,6 +853,40 @@ input[type=range] {
   margin: 22px 0 18px;
 }
 
+/* lookbook settings */
+
+.lookbook-card {
+  width: min(560px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 34px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.lookbook-card h2 {
+  margin: 0 0 6px;
+  font-family: 'Caveat', cursive;
+  font-size: 34px;
+  color: var(--soft);
+}
+
+.lookbook-card > p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 16px;
+}
+
+.lookbook-caption-row {
+  margin: 12px 0;
+}
+
+.lookbook-caption-row label {
+  margin: 0 0 4px;
+}
+
 .branding-logo-row {
   display: flex;
   flex-direction: column;
@@ -1394,6 +1428,32 @@ input[type=text] {
       <button class="secondary close-preview" id="closePreviewBtn" type="button">close</button>
     </div>
 
+  </div>
+</aside>
+
+<!-- LOOKBOOK PDF SETTINGS -->
+<aside class="preview-overlay hidden" id="lookbookOverlay">
+  <div class="lookbook-card">
+    <h2>customize your lookbook</h2>
+    <p>edit the cover and give each page its own caption before you generate the PDF.</p>
+
+    <div class="control-group">
+      <h3>cover page</h3>
+      <label>title</label>
+      <input type="text" id="lookbookTitleInput" placeholder="Pattern Collection">
+      <label>subtitle (optional)</label>
+      <input type="text" id="lookbookSubtitleInput" placeholder="e.g. your shop name, or a tagline">
+    </div>
+
+    <div class="control-group">
+      <h3>captions</h3>
+      <div id="lookbookCaptionList"></div>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:6px;">
+      <button class="secondary" id="lookbookCancelBtn" type="button" style="flex:1;">cancel</button>
+      <button class="orange" id="lookbookGenerateBtn" type="button" style="flex:1;">generate PDF</button>
+    </div>
   </div>
 </aside>
 
@@ -3428,6 +3488,12 @@ document.getElementById('downloadCreativeBtn')?.addEventListener('click', async 
 
 /* ---------- lookbook PDF: combines every selected mock-up + scene ---------- */
 
+const lookbookState = {
+  title: 'Pattern Collection',
+  subtitle: '',
+  captions: {}
+};
+
 function imageToPngDataUrl(img) {
   const c = document.createElement('canvas');
   c.width = img.naturalWidth || img.width;
@@ -3436,41 +3502,106 @@ function imageToPngDataUrl(img) {
   return c.toDataURL('image/png');
 }
 
-async function collectLookbookPages() {
+function getSelectedLookbookItems() {
+  const items = [];
+
+  document.querySelectorAll('.mock-card.selected').forEach(card => {
+    const product = card.dataset.product;
+    const defaultTitle = card.querySelector('h3')?.textContent?.trim() || product;
+    items.push({ key: 'product:' + product, kind: 'product', id: product, defaultTitle });
+  });
+
+  document.querySelectorAll('.scene-card.selected').forEach(card => {
+    const scene = card.dataset.scene;
+    if (scene !== 'bedding') return; // only bedding has a real renderer today
+    const defaultTitle = card.querySelector('h3')?.textContent?.trim() || scene;
+    items.push({ key: 'scene:' + scene, kind: 'scene', id: scene, defaultTitle });
+  });
+
+  return items;
+}
+
+async function collectLookbookPages(items) {
   const pages = [];
 
-  const quickSelected = [...document.querySelectorAll('.mock-card.selected')];
-  for (const card of quickSelected) {
-    const product = card.dataset.product;
-    const canvas = document.getElementById(product + 'QuickCanvas');
-    if (!quickPatternImage || !canvas) continue;
-    if (canvas.classList.contains('hidden')) await renderQuickCard(product);
-    if (canvas.classList.contains('hidden')) continue;
-    const title = card.querySelector('h3')?.textContent?.trim() || product;
-    pages.push({ canvas, title });
-  }
+  for (const item of items) {
+    let canvas = null;
 
-  const sceneSelected = [...document.querySelectorAll('.scene-card.selected')];
-  for (const card of sceneSelected) {
-    if (card.dataset.scene !== 'bedding') continue;
-    const canvas = document.getElementById('beddingQuickCanvas');
-    if (!trayPatterns.length || !trayPatterns[0].img || !canvas) continue;
-    if (canvas.classList.contains('hidden')) await renderBeddingCard();
-    if (canvas.classList.contains('hidden')) continue;
-    const title = card.querySelector('h3')?.textContent?.trim() || 'bedding scene';
-    pages.push({ canvas, title });
+    if (item.kind === 'product') {
+      canvas = document.getElementById(item.id + 'QuickCanvas');
+      if (!quickPatternImage || !canvas) continue;
+      if (canvas.classList.contains('hidden')) await renderQuickCard(item.id);
+      if (canvas.classList.contains('hidden')) continue;
+    } else if (item.kind === 'scene' && item.id === 'bedding') {
+      canvas = document.getElementById('beddingQuickCanvas');
+      if (!trayPatterns.length || !trayPatterns[0].img || !canvas) continue;
+      if (canvas.classList.contains('hidden')) await renderBeddingCard();
+      if (canvas.classList.contains('hidden')) continue;
+    }
+
+    if (!canvas) continue;
+    const caption = (lookbookState.captions[item.key] || '').trim() || item.defaultTitle;
+    pages.push({ canvas, title: caption });
   }
 
   return pages;
 }
 
-async function downloadLookbookPDF() {
+const lookbookOverlay = document.getElementById('lookbookOverlay');
+const lookbookCaptionList = document.getElementById('lookbookCaptionList');
+const lookbookTitleInput = document.getElementById('lookbookTitleInput');
+const lookbookSubtitleInput = document.getElementById('lookbookSubtitleInput');
+
+function openLookbookSettings() {
+  const items = getSelectedLookbookItems();
+  if (!items.length) {
+    alert('select at least one mock-up or scene first (use the ✓ on any card), then try the lookbook again.');
+    return;
+  }
+
+  lookbookTitleInput.value = lookbookState.title;
+  lookbookSubtitleInput.value = lookbookState.subtitle;
+
+  lookbookCaptionList.innerHTML = '';
+  items.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'lookbook-caption-row';
+    const currentCaption = (lookbookState.captions[item.key] || item.defaultTitle).replace(/"/g, '&quot;');
+    row.innerHTML = `
+      <label>${item.defaultTitle}</label>
+      <input type="text" class="lookbook-caption-input" data-key="${item.key}" value="${currentCaption}">
+    `;
+    lookbookCaptionList.appendChild(row);
+  });
+
+  previewOverlay?.classList.add('hidden');
+  lookbookOverlay.classList.remove('hidden');
+}
+
+document.getElementById('lookbookCancelBtn')?.addEventListener('click', () => {
+  lookbookOverlay.classList.add('hidden');
+});
+
+document.getElementById('lookbookGenerateBtn')?.addEventListener('click', async () => {
+  lookbookState.title = lookbookTitleInput.value.trim() || 'Pattern Collection';
+  lookbookState.subtitle = lookbookSubtitleInput.value.trim();
+
+  document.querySelectorAll('.lookbook-caption-input').forEach(input => {
+    lookbookState.captions[input.dataset.key] = input.value;
+  });
+
+  lookbookOverlay.classList.add('hidden');
+  await generateLookbookPDF();
+});
+
+async function generateLookbookPDF() {
   if (!window.jspdf) {
     showToastMessage('the lookbook library is still loading — give it a second and try again.');
     return;
   }
 
-  const pages = await collectLookbookPages();
+  const items = getSelectedLookbookItems();
+  const pages = await collectLookbookPages(items);
   if (!pages.length) {
     alert('select at least one mock-up or scene first (use the ✓ on any card), then try the lookbook again.');
     return;
@@ -3495,12 +3626,20 @@ async function downloadLookbookPDF() {
 
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(30);
-  doc.text('Pattern Collection', pageW / 2, coverY, { align: 'center' });
+  doc.text(lookbookState.title, pageW / 2, coverY, { align: 'center' });
+
+  let afterTitleY = coverY + 26;
+  if (lookbookState.subtitle) {
+    doc.setFontSize(15);
+    doc.setTextColor(225, 225, 235);
+    doc.text(lookbookState.subtitle, pageW / 2, afterTitleY, { align: 'center' });
+    afterTitleY += 22;
+  }
 
   doc.setFontSize(13);
   doc.setTextColor(190, 190, 205);
   const dateStr = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-  doc.text(pages.length + ' mock-up' + (pages.length === 1 ? '' : 's') + '  ·  ' + dateStr, pageW / 2, coverY + 26, { align: 'center' });
+  doc.text(pages.length + ' mock-up' + (pages.length === 1 ? '' : 's') + '  ·  ' + dateStr, pageW / 2, afterTitleY, { align: 'center' });
 
   pages.forEach((page, index) => {
     doc.addPage();
@@ -3528,8 +3667,8 @@ async function downloadLookbookPDF() {
   doc.save('pattern-collection-lookbook.pdf');
 }
 
-document.getElementById('downloadLookbookBtn')?.addEventListener('click', downloadLookbookPDF);
-document.getElementById('downloadLookbookBtnCreative')?.addEventListener('click', downloadLookbookPDF);
+document.getElementById('downloadLookbookBtn')?.addEventListener('click', openLookbookSettings);
+document.getElementById('downloadLookbookBtnCreative')?.addEventListener('click', openLookbookSettings);
 
 document.getElementById('generateQuickBtn').addEventListener('click', () => {
   if (!quickPatternImage) {
