@@ -1111,6 +1111,7 @@ input[type=text] {
               <button class="secondary category-btn" data-category="drinkware" type="button">drinkware</button>
               <button class="secondary category-btn" data-category="stationery" type="button">stationery &amp; desk</button>
               <button class="secondary category-btn" data-category="home" type="button">home &amp; living</button>
+              <button class="secondary category-btn" data-category="beachwear" type="button">beachwear</button>
             </div>
 
             <div class="card-grid" id="quickGrid">
@@ -1217,6 +1218,21 @@ input[type=text] {
                 <small>hanging linen + soft fabric folds</small>
               </div>
               <button class="secondary preview-btn" data-kind="quick" data-name="kitchen towel mock-up" type="button">preview</button>
+            </div>
+          </article>
+
+          <article class="mock-card" data-product="buckethat" data-category="beachwear">
+            <button class="select-bubble" type="button" aria-label="select bucket hat">✓</button>
+            <div class="card-preview">
+              <canvas id="buckethatQuickCanvas" class="quick-canvas hidden"></canvas>
+              <div class="placeholder-art" id="buckethatPlaceholder"><span class="big">👒</span>bucket hat preview</div>
+            </div>
+            <div class="card-footer">
+              <div>
+                <h3>bucket hat mock-up</h3>
+                <small>beachwear · canvas fabric</small>
+              </div>
+              <button class="secondary preview-btn" data-kind="quick" data-name="bucket hat mock-up" type="button">preview</button>
             </div>
           </article>
 
@@ -2036,7 +2052,7 @@ function refreshCurrentPreviewRender() {
 // Keeps every already-rendered quick-mode card (and the bedding card) in
 // sync after a branding change, the same way the global scale panel does.
 function reRenderVisibleQuickCards() {
-  ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel'].forEach(product => {
+  ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat'].forEach(product => {
     const canvas = document.getElementById(product + 'QuickCanvas');
     if (quickPatternImage && canvas && !canvas.classList.contains('hidden')) {
       renderQuickCard(product);
@@ -2964,6 +2980,79 @@ async function renderKitchenTowelMockupToCanvas(targetCanvas, forcedScalePercent
   return true;
 }
 
+let bucketHatBaseImage = null;
+let bucketHatMaskImage = null;
+
+async function loadBucketHatAssets() {
+  if (!bucketHatBaseImage) {
+    bucketHatBaseImage = await loadAssetImageFromCandidates([
+      './BucketHatMockup.jpg',
+      './mockups/BucketHatMockup.jpg'
+    ], 'bucket hat base');
+  }
+  if (!bucketHatMaskImage) {
+    bucketHatMaskImage = await loadAssetImageFromCandidates([
+      './BucketHatMask.png',
+      './mockups/BucketHatMask.png'
+    ], 'bucket hat mask');
+  }
+  return { base: bucketHatBaseImage, mask: bucketHatMaskImage };
+}
+
+async function renderBucketHatMockupToCanvas(targetCanvas, forcedScalePercent = null) {
+  if (!quickPatternImage) {
+    showToastMessage('upload a pattern first');
+    return false;
+  }
+
+  const { base, mask } = await loadBucketHatAssets();
+  const w = base.naturalWidth || base.width;
+  const h = base.naturalHeight || base.height;
+
+  targetCanvas.width = w;
+  targetCanvas.height = h;
+  const ctx = targetCanvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(base, 0, 0, w, h);
+
+  const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('buckethat');
+  const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
+  const offset = getEffectiveOffsetForProduct('buckethat');
+
+  const patternLayer = document.createElement('canvas');
+  patternLayer.width = w;
+  patternLayer.height = h;
+  const pctx = patternLayer.getContext('2d');
+  pctx.imageSmoothingEnabled = true;
+  pctx.imageSmoothingQuality = 'high';
+  drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
+
+  pctx.globalCompositeOperation = 'destination-in';
+  pctx.drawImage(mask, 0, 0, w, h);
+  pctx.globalCompositeOperation = 'source-over';
+
+  boostPatternLayerContrast(patternLayer, 1.10, 1.05);
+
+  // soft canvas-fabric tuning, similar feel to the floor cushion / kitchen towel
+  ctx.save();
+  ctx.globalAlpha = 0.90;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.14;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  return true;
+}
+
 async function renderProductToCanvas(product, targetCanvas) {
   window.__currentProductScale = getEffectiveScaleForProduct(product);
 
@@ -2974,6 +3063,7 @@ async function renderProductToCanvas(product, targetCanvas) {
   if (product === 'greetingcard') return renderGreetingCardMockupToCanvas(targetCanvas, greetingCardMode, window.__currentProductScale);
   if (product === 'applepencil') return renderApplePencilMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'kitchentowel') return renderKitchenTowelMockupToCanvas(targetCanvas, window.__currentProductScale);
+  if (product === 'buckethat') return renderBucketHatMockupToCanvas(targetCanvas, window.__currentProductScale);
 
   return false;
 }
@@ -3059,7 +3149,7 @@ function setupUpload(inputId, cardId, stripId, thumbId, fileNameId) {
         quickPatternSrc = ev.target.result;
         quickPatternImage = new Image();
         quickPatternImage.onload = () => {
-          ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel'].forEach(product => {
+          ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat'].forEach(product => {
             const canvas = document.getElementById(product + 'QuickCanvas');
             const placeholder = document.getElementById(product + 'Placeholder');
             if (canvas) canvas.classList.add('hidden');
@@ -3087,7 +3177,7 @@ document.getElementById('quickReplaceBtn').addEventListener('click', () => {
   quickPatternSrc = '';
   document.getElementById('quickUploadStrip').classList.add('hidden');
   document.getElementById('quickUploadCard').classList.remove('hidden');
-  ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel'].forEach(product => {
+  ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat'].forEach(product => {
     document.getElementById(product + 'QuickCanvas')?.classList.add('hidden');
     document.getElementById(product + 'Placeholder')?.classList.remove('hidden');
   });
@@ -3428,9 +3518,17 @@ document.getElementById('downloadQuickBtn').addEventListener('click', async () =
     }
   }
 
-  const notReady = selected.filter(p => p !== 'mug' && p !== 'greetingcard' && p !== 'kitchentowel');
+  if (selected.includes('buckethat')) {
+    const hatCanvas = document.getElementById('buckethatQuickCanvas');
+    if (quickPatternImage && hatCanvas) {
+      if (hatCanvas.classList.contains('hidden')) await renderQuickCard('buckethat');
+      downloadCanvasPNG(hatCanvas, 'bucket_hat_mockup.png');
+    }
+  }
+
+  const notReady = selected.filter(p => p !== 'mug' && p !== 'greetingcard' && p !== 'kitchentowel' && p !== 'buckethat');
   if (notReady.length) {
-    alert('Mug, greeting card and kitchen towel download now. ' + notReady.join(', ') + ' engines are still placeholders.');
+    alert('Mug, greeting card, kitchen towel and bucket hat download now. ' + notReady.join(', ') + ' engines are still placeholders.');
   }
 });
 
@@ -3682,6 +3780,7 @@ document.getElementById('generateQuickBtn').addEventListener('click', () => {
   renderQuickCard('applepencil');
   renderQuickCard('greetingcard');
   renderQuickCard('kitchentowel');
+  renderQuickCard('buckethat');
 });
 
 const previewOverlay = document.getElementById('previewOverlay');
@@ -3753,7 +3852,7 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
     if (previewPlaceholder) previewPlaceholder.classList.remove('hidden');
 
     if (!creative) {
-      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : name.includes('greeting card') ? 'greetingcard' : name.includes('kitchen towel') ? 'kitchentowel' : '';
+      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : name.includes('greeting card') ? 'greetingcard' : name.includes('kitchen towel') ? 'kitchentowel' : name.includes('bucket hat') ? 'buckethat' : '';
       currentPreviewProduct = product;
       currentPreviewScene = '';
       document.getElementById('notebookSideControls')?.classList.toggle('hidden', product !== 'notebook');
@@ -3782,7 +3881,7 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
   const el = document.getElementById(id);
   if (!el) return;
   el.addEventListener('input', () => {
-    ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel'].forEach(product => {
+    ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat'].forEach(product => {
       const canvas = document.getElementById(product + 'QuickCanvas');
       if (quickPatternImage && canvas && !canvas.classList.contains('hidden')) {
         renderQuickCard(product);
