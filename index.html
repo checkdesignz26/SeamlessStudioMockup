@@ -6,7 +6,7 @@
 <title>✿ Mock-up Studio Coastal Atelier ✿</title>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Quicksand:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Quicksand:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&family=Bebas+Neue&display=swap');
 
 :root {
   --bg: #101827;
@@ -1432,9 +1432,9 @@ input[type=text] {
   <div class="top-controls project-controls">
     <button class="secondary" id="quickSaveBtn" type="button">💾 quick save</button>
     <button class="secondary" id="quickLoadBtn" type="button">📂 quick load</button>
-    <button class="secondary" id="downloadProjectBtn" type="button">⬇️ download project (.pmockup)</button>
+    <button class="secondary" id="downloadProjectBtn" type="button">⬇️ download project (.mstudio)</button>
     <button class="secondary" id="uploadProjectBtn" type="button">⬆️ open project file</button>
-    <input type="file" id="projectFileInput" accept=".pmockup,application/json" style="display:none;">
+    <input type="file" id="projectFileInput" accept=".mstudio,.pmockup,application/json" style="display:none;">
     <span class="count-pill" id="projectStatusPill"></span>
   </div>
 
@@ -2011,17 +2011,10 @@ input[type=text] {
       </div>
 
       <div id="ilTextControls" class="lookbook-editor-layer-controls">
-        <label>font</label>
-        <select id="ilFontSelect">
-          <option value="'Quicksand', sans-serif">Quicksand</option>
-          <option value="'Caveat', cursive">Caveat (handwritten)</option>
-          <option value="Georgia, serif">Georgia</option>
-          <option value="'Playfair Display', serif">Playfair Display</option>
-          <option value="'Helvetica Neue', Arial, sans-serif">Helvetica</option>
-          <option value="'Courier New', monospace">Courier New</option>
-          <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
-          <option value="Verdana, sans-serif">Verdana</option>
-        </select>
+        <label>font pairing</label>
+        <select id="ilFontPairSelect"></select>
+        <button type="button" class="secondary" id="ilApplyTitleFontBtn">use as title</button>
+        <button type="button" class="secondary" id="ilApplyBodyFontBtn">use as body</button>
         <label>size <span id="ilFontSizeValue">24px</span></label>
         <input type="range" id="ilFontSizeSlider" min="10" max="96" value="24">
         <label>colour</label>
@@ -4902,7 +4895,8 @@ function ilRefreshSelectionControls(item) {
   if (item.classList.contains('text-item')) {
     textControls.classList.add('il-active');
     const size = item.dataset.fontSize || '24';
-    document.getElementById('ilFontSelect').value = item.dataset.font || "'Quicksand', sans-serif";
+    const pairSelect = document.getElementById('ilFontPairSelect');
+    if (pairSelect) pairSelect.value = ilFindMatchingPairIndex(item.dataset.font || "'Quicksand', sans-serif");
     document.getElementById('ilFontSizeSlider').value = size;
     document.getElementById('ilFontSizeValue').textContent = size + 'px';
     ilRenderPaletteStrip(item.style.color);
@@ -5303,12 +5297,46 @@ document.getElementById('ilRotateSlider')?.addEventListener('input', e => {
   document.getElementById('ilRotateValue').textContent = deg + '°';
 });
 
-// Curated font + size controls, active only while a text layer is selected.
-document.getElementById('ilFontSelect')?.addEventListener('change', e => {
+// Curated title/body font pairings — picking a pairing and then marking
+// a selected text layer as its "title" or "body" half is the whole font
+// match-maker: no font-pairing intelligence needed, just a shortlist of
+// combinations that are already known to look professional together.
+const IL_FONT_PAIRS = [
+  { name: 'Playfair Display + Quicksand', title: "'Playfair Display', serif", body: "'Quicksand', sans-serif" },
+  { name: 'Bebas Neue + Helvetica', title: "'Bebas Neue', sans-serif", body: "'Helvetica Neue', Arial, sans-serif" },
+  { name: 'Caveat + Georgia', title: "'Caveat', cursive", body: "Georgia, serif" },
+  { name: 'Playfair Display + Helvetica', title: "'Playfair Display', serif", body: "'Helvetica Neue', Arial, sans-serif" },
+  { name: 'Courier New + Verdana', title: "'Courier New', monospace", body: "Verdana, sans-serif" }
+];
+
+(function populateFontPairSelect() {
+  const select = document.getElementById('ilFontPairSelect');
+  if (!select) return;
+  IL_FONT_PAIRS.forEach((pair, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = pair.name;
+    select.appendChild(opt);
+  });
+})();
+
+function ilFindMatchingPairIndex(font) {
+  const index = IL_FONT_PAIRS.findIndex(p => p.title === font || p.body === font);
+  return index === -1 ? 0 : index;
+}
+
+function ilApplyPairFont(role) {
   if (!ilSelectedItem || !ilSelectedItem.classList.contains('text-item')) return;
-  ilSelectedItem.dataset.font = e.target.value;
-  ilSelectedItem.style.fontFamily = e.target.value;
-});
+  const select = document.getElementById('ilFontPairSelect');
+  const pair = IL_FONT_PAIRS[Number(select.value)];
+  if (!pair) return;
+  const font = pair[role];
+  ilSelectedItem.dataset.font = font;
+  ilSelectedItem.style.fontFamily = font;
+}
+
+document.getElementById('ilApplyTitleFontBtn')?.addEventListener('click', () => ilApplyPairFont('title'));
+document.getElementById('ilApplyBodyFontBtn')?.addEventListener('click', () => ilApplyPairFont('body'));
 
 document.getElementById('ilFontSizeSlider')?.addEventListener('input', e => {
   if (!ilSelectedItem || !ilSelectedItem.classList.contains('text-item')) return;
@@ -5882,10 +5910,11 @@ document.getElementById('closePreviewBtn').addEventListener('click', () => {
    time-consuming to redo) the interactive lookbook's pages — that losing
    it to a refresh is a real cost. Quick save/load round-trips through
    localStorage for a fast in-browser checkpoint; downloading/opening a
-   .pmockup file is the exact same JSON, just portable to disk. */
+   .mstudio file is the exact same JSON, just portable to disk. */
 
-const PMOCKUP_VERSION = 1;
-const PMOCKUP_LOCALSTORAGE_KEY = 'mockupStudioQuickSave';
+const MSTUDIO_FORMAT = 'mstudio';
+const MSTUDIO_VERSION = 1;
+const MSTUDIO_LOCALSTORAGE_KEY = 'mockupStudioQuickSave';
 
 function ilSerializeLookbookItem(item) {
   const base = {
@@ -5920,8 +5949,8 @@ function ilSerializeLookbookItem(item) {
 
 function serializeProject() {
   return {
-    format: 'pmockup',
-    version: PMOCKUP_VERSION,
+    format: MSTUDIO_FORMAT,
+    version: MSTUDIO_VERSION,
     savedAt: new Date().toISOString(),
 
     quickPatternSrc: quickPatternSrc || null,
@@ -5999,7 +6028,9 @@ function ilRestoreLookbookItem(data) {
 }
 
 async function restoreProject(data) {
-  if (!data || data.format !== 'pmockup') {
+  // Accept the old .pmockup format too, since files already downloaded
+  // under that name should still open.
+  if (!data || (data.format !== 'mstudio' && data.format !== 'pmockup')) {
     alert("this doesn't look like a Mock-up Studio project file.");
     return;
   }
@@ -6155,7 +6186,7 @@ function setProjectStatus(message) {
 document.getElementById('quickSaveBtn')?.addEventListener('click', () => {
   try {
     const data = serializeProject();
-    localStorage.setItem(PMOCKUP_LOCALSTORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(MSTUDIO_LOCALSTORAGE_KEY, JSON.stringify(data));
     setProjectStatus('saved ' + new Date().toLocaleTimeString());
   } catch (err) {
     console.error(err);
@@ -6164,7 +6195,7 @@ document.getElementById('quickSaveBtn')?.addEventListener('click', () => {
 });
 
 document.getElementById('quickLoadBtn')?.addEventListener('click', async () => {
-  const raw = localStorage.getItem(PMOCKUP_LOCALSTORAGE_KEY);
+  const raw = localStorage.getItem(MSTUDIO_LOCALSTORAGE_KEY);
   if (!raw) {
     alert('no quick save found yet — use "quick save" first.');
     return;
@@ -6181,7 +6212,7 @@ document.getElementById('quickLoadBtn')?.addEventListener('click', async () => {
 document.getElementById('downloadProjectBtn')?.addEventListener('click', () => {
   const data = serializeProject();
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  downloadProjectFile(data, `mockup-project-${stamp}.pmockup`);
+  downloadProjectFile(data, `mockup-project-${stamp}.mstudio`);
 });
 
 document.getElementById('uploadProjectBtn')?.addEventListener('click', () => {
@@ -6199,7 +6230,7 @@ document.getElementById('projectFileInput')?.addEventListener('change', e => {
       setProjectStatus('project loaded');
     } catch (err) {
       console.error(err);
-      alert('could not read that .pmockup file — it may be corrupted or from an incompatible version.');
+      alert('could not read that .mstudio file — it may be corrupted or from an incompatible version.');
     }
   };
   reader.readAsText(file);
