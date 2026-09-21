@@ -1032,14 +1032,6 @@ input[type=range] {
   flex: 0 0 auto;
 }
 
-.lookbook-row-divider {
-  width: 1px;
-  align-self: stretch;
-  background: var(--border);
-  flex: 0 0 auto;
-  margin: 0 4px;
-}
-
 .lookbook-pattern-strip {
   display: flex;
   align-items: center;
@@ -1059,33 +1051,20 @@ input[type=range] {
   flex: 0 0 auto;
 }
 
-.lookbook-editor-patterns .lookbook-pattern-swatch.active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px #fff, 0 0 0 3px var(--accent);
-}
-
-.lookbook-colorway-strip {
+.lookbook-zoom-control {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.lookbook-colorway-swatch {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 2px solid rgba(0,0,0,0.4);
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.55);
-  background-size: cover;
-  background-position: center;
-  cursor: pointer;
+  gap: 8px;
+  margin-left: auto;
   flex: 0 0 auto;
 }
 
-.lookbook-colorway-swatch.active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px #fff, 0 0 0 3px var(--accent);
+.lookbook-zoom-control label {
+  white-space: nowrap;
+}
+
+.lookbook-zoom-control input[type="range"] {
+  width: 120px;
 }
 
 .lookbook-palette-strip {
@@ -2017,9 +1996,10 @@ input[type=text] {
     <div class="lookbook-editor-patterns">
       <span class="lookbook-row-label">add a pattern swatch:</span>
       <div class="lookbook-pattern-strip" id="ilPatternStrip"></div>
-      <span class="lookbook-row-divider"></span>
-      <span class="lookbook-row-label">colourways (click to drop one on the canvas):</span>
-      <div class="lookbook-colorway-strip" id="ilColorwayStrip"></div>
+      <div class="lookbook-zoom-control">
+        <label class="lookbook-row-label">zoom <span id="ilZoomValue">100%</span></label>
+        <input type="range" id="ilZoomSlider" min="40" max="200" value="100">
+      </div>
     </div>
 
     <div class="lookbook-editor-controls-wrapper" id="ilControlsWrapper">
@@ -4941,7 +4921,7 @@ function ilSetupCanvasPageEvents(canvasEl) {
   canvasEl.addEventListener('dblclick', e => {
     if (e.target !== canvasEl) return;
     const rect = canvasEl.getBoundingClientRect();
-    ilCreateTextItem(e.clientX - rect.left, e.clientY - rect.top);
+    ilCreateTextItem((e.clientX - rect.left) / ilZoom, (e.clientY - rect.top) / ilZoom);
   });
   canvasEl.addEventListener('mousedown', e => {
     if (e.target === canvasEl) ilDeselectAll();
@@ -4951,6 +4931,8 @@ function ilSetupCanvasPageEvents(canvasEl) {
 function ilAddPage() {
   const canvasEl = document.createElement('div');
   canvasEl.className = 'lookbook-canvas';
+  canvasEl.style.transform = `scale(${ilZoom})`;
+  canvasEl.style.transformOrigin = 'top center';
   ilSetupCanvasPageEvents(canvasEl);
   ilViewportEl.appendChild(canvasEl);
   ilPages.push({ el: canvasEl });
@@ -5095,8 +5077,8 @@ function ilMakeItemDraggable(item) {
     if (!dragging) return;
     e.preventDefault();
     const point = e.touches ? e.touches[0] : e;
-    item.style.left = (origLeft + point.clientX - startX) + 'px';
-    item.style.top = (origTop + point.clientY - startY) + 'px';
+    item.style.left = (origLeft + (point.clientX - startX) / ilZoom) + 'px';
+    item.style.top = (origTop + (point.clientY - startY) / ilZoom) + 'px';
   }
 
   function pointerUp() {
@@ -5138,8 +5120,8 @@ function ilMakeItemResizable(item, handle) {
     if (!resizing) return;
     e.preventDefault();
     const point = e.touches ? e.touches[0] : e;
-    item.style.width = Math.max(40, startW + point.clientX - startX) + 'px';
-    item.style.height = Math.max(30, startH + point.clientY - startY) + 'px';
+    item.style.width = Math.max(40, startW + (point.clientX - startX) / ilZoom) + 'px';
+    item.style.height = Math.max(30, startH + (point.clientY - startY) / ilZoom) + 'px';
   }
 
   function up() {
@@ -5495,38 +5477,10 @@ document.getElementById('ilAddSelectedBtn')?.addEventListener('click', async () 
   await ilRenderSinglePageThumbnail(ilActivePageIndex);
 });
 
-// Same pattern, several colourways: a quick way to pitch one design to a
-// client in a handful of alternate colour schemes without recolouring
-// anything by hand. Hue-rotation works on any pattern (no need to know
-// its actual colours), and the same rotation is mirrored at export time
-// so the PNG/PDF matches what's on screen.
-const IL_COLORWAY_HUE_STEPS = [0, 72, 144, 216, 288];
-let ilActiveColorwaySrc = '';
-
-function ilRenderColorwayStrip(src) {
-  ilActiveColorwaySrc = src || '';
-  const strip = document.getElementById('ilColorwayStrip');
-  if (!strip) return;
-  strip.innerHTML = '';
-  if (!src) return;
-
-  IL_COLORWAY_HUE_STEPS.forEach(deg => {
-    const swatch = document.createElement('div');
-    swatch.className = 'lookbook-colorway-swatch';
-    swatch.style.backgroundImage = `url("${src}")`;
-    swatch.style.filter = deg ? `hue-rotate(${deg}deg)` : 'none';
-    swatch.title = deg ? `add this colourway (hue +${deg}°)` : 'add the original colourway';
-    swatch.addEventListener('click', () => {
-      ilCreateImageItem({ src, x: 80, y: 80, w: 180, h: 180, hasPattern: true, hueRotate: deg });
-    });
-    strip.appendChild(swatch);
-  });
-}
-
 function ilRenderPatternStrip() {
   const strip = document.getElementById('ilPatternStrip');
   if (!strip) return;
-  strip.querySelectorAll('.lookbook-pattern-swatch').forEach(el => el.remove());
+  strip.innerHTML = '';
 
   const patterns = [];
   if (quickPatternSrc) patterns.push(quickPatternSrc);
@@ -5534,25 +5488,37 @@ function ilRenderPatternStrip() {
 
   patterns.forEach(src => {
     const swatch = document.createElement('div');
-    swatch.className = 'lookbook-pattern-swatch' + (src === ilActiveColorwaySrc ? ' active' : '');
+    swatch.className = 'lookbook-pattern-swatch';
     swatch.style.backgroundImage = `url("${src}")`;
-    swatch.title = 'click to add, or to see its colourways alongside';
+    swatch.title = 'click to add this pattern to the canvas';
     swatch.addEventListener('click', () => {
       ilCreateImageItem({ src, x: 80, y: 80, w: 220, h: 220, hasPattern: true });
-      strip.querySelectorAll('.lookbook-pattern-swatch').forEach(el => el.classList.remove('active'));
-      swatch.classList.add('active');
-      ilRenderColorwayStrip(src);
     });
     strip.appendChild(swatch);
   });
-
-  if (!ilActiveColorwaySrc && patterns.length) {
-    strip.querySelector('.lookbook-pattern-swatch')?.classList.add('active');
-    ilRenderColorwayStrip(patterns[0]);
-  } else {
-    ilRenderColorwayStrip(ilActiveColorwaySrc);
-  }
 }
+
+// The whole canvas can be zoomed for a better fit on smaller screens (an
+// iPad, say) without changing the underlying page — it's a pure CSS scale,
+// so item positions/sizes (and export/thumbnail rendering, which reads
+// offsetWidth/style.left directly) are completely unaffected. Any pointer
+// math that turns screen-pixel movement into canvas-local px (dragging,
+// resizing, double-click placement) divides by ilZoom to compensate.
+let ilZoom = 1;
+
+function ilApplyZoom() {
+  ilPages.forEach(p => {
+    p.el.style.transform = `scale(${ilZoom})`;
+    p.el.style.transformOrigin = 'top center';
+  });
+}
+
+document.getElementById('ilZoomSlider')?.addEventListener('input', e => {
+  ilZoom = parseInt(e.target.value, 10) / 100;
+  const valueEl = document.getElementById('ilZoomValue');
+  if (valueEl) valueEl.textContent = e.target.value + '%';
+  ilApplyZoom();
+});
 
 // Only the very first open auto-populates from the current selection.
 // Reopening later (say, after going back to select one more mock-up)
@@ -5570,8 +5536,13 @@ async function ilOpenEditor() {
   previewOverlay?.classList.add('hidden');
   lookbookOverlay?.classList.add('hidden');
   document.getElementById('interactiveLookbookOverlay')?.classList.remove('hidden');
-  ilActiveColorwaySrc = '';
   ilRenderPatternStrip();
+  ilZoom = 1;
+  const zoomSlider = document.getElementById('ilZoomSlider');
+  if (zoomSlider) zoomSlider.value = 100;
+  const zoomValue = document.getElementById('ilZoomValue');
+  if (zoomValue) zoomValue.textContent = '100%';
+  ilApplyZoom();
   await ilBuildPaletteFromCollection();
 
   if (!ilPages.length) {
