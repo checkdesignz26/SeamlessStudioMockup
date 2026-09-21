@@ -942,6 +942,171 @@ input[type=range] {
   margin: 0 0 4px;
 }
 
+/* interactive lookbook editor */
+
+.lookbook-editor-card {
+  width: min(1440px, 98vw);
+  height: min(920px, 94vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 30px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.lookbook-editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.lookbook-editor-toolbar h2 {
+  margin: 0;
+  font-family: 'Caveat', cursive;
+  font-size: 28px;
+  color: var(--soft);
+}
+
+.lookbook-editor-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.lookbook-editor-patterns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.lookbook-editor-patterns .lookbook-pattern-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background-size: cover;
+  background-position: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.lookbook-editor-layer-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.16);
+  flex-wrap: wrap;
+}
+
+.lookbook-editor-layer-controls.hidden {
+  display: none;
+}
+
+.lookbook-editor-layer-controls label {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.lookbook-editor-layer-controls input[type="range"] {
+  width: 160px;
+}
+
+.lookbook-viewport {
+  flex: 1;
+  overflow: auto;
+  padding: 40px;
+  display: flex;
+  justify-content: center;
+  background:
+    repeating-conic-gradient(rgba(255,255,255,0.04) 0% 25%, transparent 0% 50%) 0 0 / 26px 26px,
+    rgba(0,0,0,0.22);
+}
+
+.lookbook-canvas {
+  position: relative;
+  width: 1200px;
+  height: 850px;
+  flex: 0 0 auto;
+  background: #ffffff;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+.canvas-item {
+  position: absolute;
+  box-sizing: border-box;
+  cursor: grab;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  user-select: none;
+  touch-action: none;
+}
+
+.canvas-item.selected {
+  border-color: var(--accent);
+}
+
+.canvas-item.text-item {
+  background: transparent;
+  color: #222;
+  font-family: inherit;
+  font-size: 24px;
+  line-height: 1.3;
+  padding: 6px 10px;
+  cursor: text;
+  outline: none;
+}
+
+.canvas-item .item-resize-handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #fff;
+  cursor: nwse-resize;
+  display: none;
+}
+
+.canvas-item .item-delete-handle {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #d33;
+  color: #fff;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  cursor: pointer;
+  border: 2px solid #fff;
+  display: none;
+}
+
+.canvas-item.selected .item-resize-handle,
+.canvas-item.selected .item-delete-handle {
+  display: block;
+}
+
 .branding-logo-row {
   display: flex;
   flex-direction: column;
@@ -1159,6 +1324,7 @@ input[type=text] {
               <button class="secondary" id="deselectAllQuickBtn" type="button">deselect all</button>
               <button class="orange" id="downloadQuickBtn" type="button">download selected</button>
               <button class="secondary" id="downloadLookbookBtn" type="button">📖 lookbook PDF</button>
+              <button class="secondary" id="openInteractiveLookbookBtn" type="button">🎨 design lookbook</button>
               <span class="count-pill" id="quickSelectedCount">0 selected</span>
             </div>
           </section>
@@ -1395,6 +1561,7 @@ input[type=text] {
             <div class="action-right">
               <button class="orange" id="downloadCreativeBtn" type="button">download selected</button>
               <button class="secondary" id="downloadLookbookBtnCreative" type="button">📖 lookbook PDF</button>
+              <button class="secondary" id="openInteractiveLookbookBtnCreative" type="button">🎨 design lookbook</button>
               <span class="count-pill" id="creativeSelectedCount">0 selected</span>
             </div>
           </section>
@@ -1587,6 +1754,37 @@ input[type=text] {
     <div style="display:flex; gap:10px; margin-top:6px;">
       <button class="secondary" id="lookbookCancelBtn" type="button" style="flex:1;">cancel</button>
       <button class="orange" id="lookbookGenerateBtn" type="button" style="flex:1;">generate PDF</button>
+    </div>
+  </div>
+</aside>
+
+<!-- INTERACTIVE LOOKBOOK EDITOR: free-form drag/drop/layering canvas -->
+<aside class="preview-overlay hidden" id="interactiveLookbookOverlay">
+  <div class="lookbook-editor-card">
+    <div class="lookbook-editor-toolbar">
+      <h2>design your lookbook</h2>
+      <div class="lookbook-editor-actions">
+        <button class="secondary" id="ilAddTextBtn" type="button">+ add text</button>
+        <button class="secondary" id="ilDeleteItemBtn" type="button" disabled>delete selected</button>
+        <button class="secondary" id="ilExportPngBtn" type="button">export PNG</button>
+        <button class="orange" id="ilExportPdfBtn" type="button">export PDF</button>
+        <button class="secondary" id="ilCloseBtn" type="button">close</button>
+      </div>
+    </div>
+
+    <div class="lookbook-editor-patterns" id="ilPatternStrip">
+      <span style="font-size:12px; color:var(--muted);">add a pattern swatch:</span>
+    </div>
+
+    <div id="ilLayerControls" class="lookbook-editor-layer-controls hidden">
+      <label>pattern scale <span id="ilScaleValue">100%</span></label>
+      <input type="range" id="ilScaleSlider" min="20" max="400" value="100">
+      <label>rotate <span id="ilRotateValue">0°</span></label>
+      <input type="range" id="ilRotateSlider" min="0" max="360" value="0">
+    </div>
+
+    <div class="lookbook-viewport" id="lookbookViewport">
+      <div class="lookbook-canvas" id="lookbookCanvas"></div>
     </div>
   </div>
 </aside>
@@ -4395,6 +4593,473 @@ async function generateLookbookPDF() {
 
 document.getElementById('downloadLookbookBtn')?.addEventListener('click', openLookbookSettings);
 document.getElementById('downloadLookbookBtnCreative')?.addEventListener('click', openLookbookSettings);
+
+/* ---------- interactive lookbook: free-form drag/drop/layering canvas ----------
+   A looser alternative to the fixed-page PDF above: mock-ups, pattern
+   swatches and text land as independently draggable/resizable layers on
+   an open canvas, so a designer can lay out a real "moodboard" style
+   lookbook rather than one photo per page. */
+
+const lookbookCanvasEl = document.getElementById('lookbookCanvas');
+let ilZIndexCounter = 10;
+let ilSelectedItem = null;
+
+function ilLoadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function ilSelectItem(item) {
+  document.querySelectorAll('.canvas-item.selected').forEach(el => el.classList.remove('selected'));
+  item.classList.add('selected');
+  ilSelectedItem = item;
+
+  const deleteBtn = document.getElementById('ilDeleteItemBtn');
+  if (deleteBtn) deleteBtn.disabled = false;
+
+  const layerControls = document.getElementById('ilLayerControls');
+  if (item.dataset.hasPattern === 'true') {
+    layerControls.classList.remove('hidden');
+    const scale = item.dataset.scale || '100';
+    const rotate = item.dataset.rotate || '0';
+    document.getElementById('ilScaleSlider').value = scale;
+    document.getElementById('ilRotateSlider').value = rotate;
+    document.getElementById('ilScaleValue').textContent = scale + '%';
+    document.getElementById('ilRotateValue').textContent = rotate + '°';
+  } else {
+    layerControls.classList.add('hidden');
+  }
+}
+
+function ilDeselectAll() {
+  document.querySelectorAll('.canvas-item.selected').forEach(el => el.classList.remove('selected'));
+  ilSelectedItem = null;
+  const deleteBtn = document.getElementById('ilDeleteItemBtn');
+  if (deleteBtn) deleteBtn.disabled = true;
+  document.getElementById('ilLayerControls')?.classList.add('hidden');
+}
+
+// Prompt 1: drag/drop/layering engine. Any .canvas-item becomes draggable
+// anywhere on .lookbook-canvas, jumping to the top z-index the moment a
+// user grabs it, and it works the same for mouse and touch input.
+function ilMakeItemDraggable(item) {
+  let dragging = false;
+  let startX = 0, startY = 0, origLeft = 0, origTop = 0;
+
+  function pointerDown(e) {
+    // Let a focused text item keep normal text-cursor/selection behaviour
+    // instead of hijacking the gesture into a drag.
+    if (item.classList.contains('text-item') && document.activeElement === item) return;
+    if (e.target.classList.contains('item-resize-handle') || e.target.classList.contains('item-delete-handle')) return;
+
+    e.preventDefault();
+    ilSelectItem(item);
+    dragging = true;
+    item.style.zIndex = ++ilZIndexCounter;
+
+    const point = e.touches ? e.touches[0] : e;
+    startX = point.clientX;
+    startY = point.clientY;
+    origLeft = parseFloat(item.style.left) || 0;
+    origTop = parseFloat(item.style.top) || 0;
+
+    document.addEventListener('mousemove', pointerMove);
+    document.addEventListener('touchmove', pointerMove, { passive: false });
+    document.addEventListener('mouseup', pointerUp);
+    document.addEventListener('touchend', pointerUp);
+  }
+
+  function pointerMove(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    const point = e.touches ? e.touches[0] : e;
+    item.style.left = (origLeft + point.clientX - startX) + 'px';
+    item.style.top = (origTop + point.clientY - startY) + 'px';
+  }
+
+  function pointerUp() {
+    dragging = false;
+    document.removeEventListener('mousemove', pointerMove);
+    document.removeEventListener('touchmove', pointerMove);
+    document.removeEventListener('mouseup', pointerUp);
+    document.removeEventListener('touchend', pointerUp);
+  }
+
+  item.addEventListener('mousedown', pointerDown);
+  item.addEventListener('touchstart', pointerDown, { passive: false });
+}
+
+function ilMakeItemResizable(item, handle) {
+  let resizing = false;
+  let startX = 0, startY = 0, startW = 0, startH = 0;
+
+  function down(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    ilSelectItem(item);
+    resizing = true;
+    const point = e.touches ? e.touches[0] : e;
+    startX = point.clientX;
+    startY = point.clientY;
+    startW = item.offsetWidth;
+    startH = item.offsetHeight;
+
+    document.addEventListener('mousemove', move);
+    document.addEventListener('touchmove', move, { passive: false });
+    document.addEventListener('mouseup', up);
+    document.addEventListener('touchend', up);
+  }
+
+  function move(e) {
+    if (!resizing) return;
+    e.preventDefault();
+    const point = e.touches ? e.touches[0] : e;
+    item.style.width = Math.max(40, startW + point.clientX - startX) + 'px';
+    item.style.height = Math.max(30, startH + point.clientY - startY) + 'px';
+  }
+
+  function up() {
+    resizing = false;
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('touchmove', move);
+    document.removeEventListener('mouseup', up);
+    document.removeEventListener('touchend', up);
+  }
+
+  handle.addEventListener('mousedown', down);
+  handle.addEventListener('touchstart', down, { passive: false });
+}
+
+function ilAttachHandles(item) {
+  const del = document.createElement('div');
+  del.className = 'item-delete-handle';
+  del.textContent = '×';
+  del.addEventListener('click', e => {
+    e.stopPropagation();
+    item.remove();
+    if (ilSelectedItem === item) ilDeselectAll();
+  });
+  item.appendChild(del);
+
+  const resize = document.createElement('div');
+  resize.className = 'item-resize-handle';
+  item.appendChild(resize);
+  ilMakeItemResizable(item, resize);
+}
+
+function ilCreateImageItem({ src, x, y, w, h, hasPattern }) {
+  const item = document.createElement('div');
+  item.className = 'canvas-item';
+  item.style.left = x + 'px';
+  item.style.top = y + 'px';
+  item.style.width = w + 'px';
+  item.style.height = h + 'px';
+  item.style.zIndex = ++ilZIndexCounter;
+  item.style.backgroundImage = `url("${src}")`;
+
+  if (hasPattern) {
+    item.dataset.hasPattern = 'true';
+    item.dataset.scale = '100';
+    item.dataset.rotate = '0';
+    item.style.backgroundRepeat = 'repeat';
+    item.style.backgroundSize = '100%';
+  }
+
+  lookbookCanvasEl.appendChild(item);
+  ilAttachHandles(item);
+  ilMakeItemDraggable(item);
+  return item;
+}
+
+// Prompt 2: text anywhere. Double-clicking empty canvas spawns a
+// contenteditable box with placeholder text that grabs focus immediately;
+// clicking away leaves it as a normal draggable .canvas-item (dragging is
+// simply suppressed for as long as the item itself has focus).
+function ilCreateTextItem(x, y) {
+  const item = document.createElement('div');
+  item.className = 'canvas-item text-item';
+  item.style.left = x + 'px';
+  item.style.top = y + 'px';
+  item.style.width = '220px';
+  item.style.height = 'auto';
+  item.style.zIndex = ++ilZIndexCounter;
+  item.contentEditable = 'true';
+  item.dataset.placeholder = 'true';
+  item.textContent = 'Type here...';
+
+  item.addEventListener('focus', () => {
+    if (item.dataset.placeholder === 'true') {
+      item.textContent = '';
+      item.dataset.placeholder = 'false';
+    }
+  });
+
+  item.addEventListener('blur', () => {
+    if (!item.textContent.trim()) {
+      item.textContent = 'Type here...';
+      item.dataset.placeholder = 'true';
+    }
+  });
+
+  item.addEventListener('dblclick', e => {
+    e.stopPropagation();
+    item.focus();
+  });
+
+  lookbookCanvasEl.appendChild(item);
+  ilAttachHandles(item);
+  ilMakeItemDraggable(item);
+  ilSelectItem(item);
+  item.focus();
+
+  const range = document.createRange();
+  range.selectNodeContents(item);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  return item;
+}
+
+lookbookCanvasEl.addEventListener('dblclick', e => {
+  if (e.target !== lookbookCanvasEl) return;
+  const rect = lookbookCanvasEl.getBoundingClientRect();
+  ilCreateTextItem(e.clientX - rect.left, e.clientY - rect.top);
+});
+
+lookbookCanvasEl.addEventListener('mousedown', e => {
+  if (e.target === lookbookCanvasEl) ilDeselectAll();
+});
+
+document.getElementById('ilAddTextBtn')?.addEventListener('click', () => {
+  ilCreateTextItem(60, 60);
+});
+
+document.getElementById('ilDeleteItemBtn')?.addEventListener('click', () => {
+  if (ilSelectedItem) {
+    ilSelectedItem.remove();
+    ilDeselectAll();
+  }
+});
+
+// Prompt 3: pattern scale & rotate. Selecting an item that carries a
+// repeating pattern background activates the two sliders; scale maps
+// straight onto background-size, rotate onto a transform: rotate() that
+// never touches the left/top the drag engine owns, so position holds.
+document.getElementById('ilScaleSlider')?.addEventListener('input', e => {
+  if (!ilSelectedItem || ilSelectedItem.dataset.hasPattern !== 'true') return;
+  const scale = e.target.value;
+  ilSelectedItem.dataset.scale = scale;
+  ilSelectedItem.style.backgroundSize = scale + '%';
+  document.getElementById('ilScaleValue').textContent = scale + '%';
+});
+
+document.getElementById('ilRotateSlider')?.addEventListener('input', e => {
+  if (!ilSelectedItem || ilSelectedItem.dataset.hasPattern !== 'true') return;
+  const deg = e.target.value;
+  ilSelectedItem.dataset.rotate = deg;
+  ilSelectedItem.style.transform = `rotate(${deg}deg)`;
+  document.getElementById('ilRotateValue').textContent = deg + '°';
+});
+
+// Populate the canvas from whatever mock-ups/scenes are currently
+// selected, staggered in a simple grid so nothing starts stacked.
+async function ilPopulateFromSelection() {
+  lookbookCanvasEl.innerHTML = '';
+  ilZIndexCounter = 10;
+  ilDeselectAll();
+
+  const items = getSelectedLookbookItems();
+  const pages = await collectLookbookPages(items);
+
+  const cols = 3;
+  const cellW = 340;
+  const cellH = 260;
+  const marginX = 40;
+  const marginY = 40;
+
+  pages.forEach((page, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    ilCreateImageItem({
+      src: page.canvas.toDataURL('image/png'),
+      x: marginX + col * (cellW + 20),
+      y: marginY + row * (cellH + 20),
+      w: cellW,
+      h: cellH,
+      hasPattern: false
+    });
+  });
+}
+
+function ilRenderPatternStrip() {
+  const strip = document.getElementById('ilPatternStrip');
+  if (!strip) return;
+  strip.querySelectorAll('.lookbook-pattern-swatch').forEach(el => el.remove());
+
+  const patterns = [];
+  if (quickPatternSrc) patterns.push(quickPatternSrc);
+  quickPatternCollection.forEach(entry => patterns.push(entry.src));
+
+  patterns.forEach(src => {
+    const swatch = document.createElement('div');
+    swatch.className = 'lookbook-pattern-swatch';
+    swatch.style.backgroundImage = `url("${src}")`;
+    swatch.title = 'add this pattern as a swatch layer';
+    swatch.addEventListener('click', () => {
+      ilCreateImageItem({ src, x: 80, y: 80, w: 220, h: 220, hasPattern: true });
+    });
+    strip.appendChild(swatch);
+  });
+}
+
+async function ilOpenEditor() {
+  const items = getSelectedLookbookItems();
+  if (!items.length) {
+    alert('select at least one mock-up or scene first (use the ✓ on any card), then try the interactive lookbook again.');
+    return;
+  }
+  previewOverlay?.classList.add('hidden');
+  lookbookOverlay?.classList.add('hidden');
+  document.getElementById('interactiveLookbookOverlay')?.classList.remove('hidden');
+  ilRenderPatternStrip();
+  await ilPopulateFromSelection();
+}
+
+document.getElementById('openInteractiveLookbookBtn')?.addEventListener('click', ilOpenEditor);
+document.getElementById('openInteractiveLookbookBtnCreative')?.addEventListener('click', ilOpenEditor);
+
+document.getElementById('ilCloseBtn')?.addEventListener('click', () => {
+  document.getElementById('interactiveLookbookOverlay')?.classList.add('hidden');
+});
+
+function ilWrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(/\s+/);
+  let line = '';
+  let cy = y;
+  words.forEach(word => {
+    const testLine = line ? line + ' ' + word : word;
+    if (ctx.measureText(testLine).width > maxWidth && line) {
+      ctx.fillText(line, x, cy);
+      line = word;
+      cy += lineHeight;
+    } else {
+      line = testLine;
+    }
+  });
+  if (line) ctx.fillText(line, x, cy);
+}
+
+function ilDrawCoverImage(ctx, img, x, y, w, h) {
+  const imgRatio = img.naturalWidth / img.naturalHeight;
+  const boxRatio = w / h;
+  let sx, sy, sw, sh;
+  if (imgRatio > boxRatio) {
+    sh = img.naturalHeight;
+    sw = sh * boxRatio;
+    sy = 0;
+    sx = (img.naturalWidth - sw) / 2;
+  } else {
+    sw = img.naturalWidth;
+    sh = sw / boxRatio;
+    sx = 0;
+    sy = (img.naturalHeight - sh) / 2;
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+
+function ilDrawTiledPattern(ctx, img, w, h, scalePercent) {
+  const scale = Math.max(0.05, scalePercent / 100);
+  const tileCanvas = document.createElement('canvas');
+  tileCanvas.width = Math.max(4, Math.round(img.naturalWidth * scale));
+  tileCanvas.height = Math.max(4, Math.round(img.naturalHeight * scale));
+  tileCanvas.getContext('2d').drawImage(img, 0, 0, tileCanvas.width, tileCanvas.height);
+  ctx.fillStyle = ctx.createPattern(tileCanvas, 'repeat');
+  ctx.fillRect(0, 0, w, h);
+}
+
+// Rasterises the free-form canvas (images honouring their scale/rotate,
+// tiled patterns honouring their own scale, text honouring its wrapping)
+// into one flat canvas for export, since none of this exists as real DOM
+// once it needs to become a PNG or a PDF page.
+async function ilRasterizeCanvas() {
+  const w = lookbookCanvasEl.offsetWidth;
+  const h = lookbookCanvasEl.offsetHeight;
+  const out = document.createElement('canvas');
+  const scaleFactor = 2;
+  out.width = w * scaleFactor;
+  out.height = h * scaleFactor;
+  const ctx = out.getContext('2d');
+  ctx.scale(scaleFactor, scaleFactor);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+
+  const items = [...lookbookCanvasEl.querySelectorAll('.canvas-item')]
+    .sort((a, b) => (parseInt(a.style.zIndex) || 0) - (parseInt(b.style.zIndex) || 0));
+
+  for (const item of items) {
+    const x = parseFloat(item.style.left) || 0;
+    const y = parseFloat(item.style.top) || 0;
+    const iw = item.offsetWidth;
+    const ih = item.offsetHeight;
+    const rotate = parseFloat(item.dataset.rotate || 0);
+
+    ctx.save();
+    ctx.translate(x + iw / 2, y + ih / 2);
+    ctx.rotate(rotate * Math.PI / 180);
+    ctx.translate(-iw / 2, -ih / 2);
+
+    if (item.classList.contains('text-item')) {
+      if (item.dataset.placeholder !== 'true') {
+        const style = getComputedStyle(item);
+        ctx.fillStyle = style.color;
+        ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        ctx.textBaseline = 'top';
+        ilWrapText(ctx, item.innerText, 10, 8, iw - 20, parseFloat(style.fontSize) * 1.3);
+      }
+    } else {
+      const match = /url\("?(.*?)"?\)/.exec(item.style.backgroundImage);
+      if (match) {
+        try {
+          const img = await ilLoadImage(match[1]);
+          if (item.dataset.hasPattern === 'true') {
+            ilDrawTiledPattern(ctx, img, iw, ih, parseFloat(item.dataset.scale || 100));
+          } else {
+            ilDrawCoverImage(ctx, img, 0, 0, iw, ih);
+          }
+        } catch (err) {
+          console.error('lookbook export: failed to load layer image', err);
+        }
+      }
+    }
+
+    ctx.restore();
+  }
+
+  return out;
+}
+
+document.getElementById('ilExportPngBtn')?.addEventListener('click', async () => {
+  const out = await ilRasterizeCanvas();
+  downloadCanvasPNG(out, 'interactive_lookbook.png');
+});
+
+document.getElementById('ilExportPdfBtn')?.addEventListener('click', async () => {
+  if (!window.jspdf) {
+    showToastMessage('the lookbook library is still loading — give it a second and try again.');
+    return;
+  }
+  const out = await ilRasterizeCanvas();
+  const { jsPDF } = window.jspdf;
+  const orientation = out.width >= out.height ? 'landscape' : 'portrait';
+  const doc = new jsPDF({ orientation, unit: 'pt', format: [out.width / 2, out.height / 2] });
+  doc.addImage(out.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, out.width / 2, out.height / 2);
+  doc.save('interactive-lookbook.pdf');
+});
 
 document.getElementById('generateQuickBtn').addEventListener('click', async () => {
   await renderQuickCardsSequentially(ALL_QUICK_PRODUCTS);
