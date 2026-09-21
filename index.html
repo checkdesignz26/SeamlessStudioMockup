@@ -379,6 +379,33 @@ button:active { transform: scale(0.98); }
   color: var(--soft);
 }
 
+.collection-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid var(--border);
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.collection-thumb .remove-thumb {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  border: none;
+  font-size: 11px;
+  line-height: 18px;
+  padding: 0;
+  cursor: pointer;
+}
+
 .strip-sub {
   font-size: 13px;
   color: var(--muted);
@@ -536,6 +563,34 @@ button:active { transform: scale(0.98); }
   display: block;
   color: var(--muted);
   margin-top: 2px;
+}
+
+.pattern-swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pattern-swatch-row.hidden {
+  display: none;
+}
+
+.pattern-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  padding: 0;
+  border: 2px solid rgba(255,255,255,0.14);
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(0,0,0,0.2);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.pattern-swatch.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(138,122,255,0.28);
 }
 
 /* creative */
@@ -1084,9 +1139,15 @@ input[type=text] {
             <img id="quickThumb" alt="">
             <div>
               <div class="strip-title" id="quickFileName">pattern uploaded</div>
-              <div class="strip-sub">quick mock-ups use one pattern only</div>
+              <div class="strip-sub">this is the default — assign a different one to any card below</div>
             </div>
             <button class="secondary" id="quickReplaceBtn" type="button">replace</button>
+          </section>
+
+          <section class="upload-strip" id="quickCollectionStrip" style="margin-top:10px;">
+            <input id="quickAddPatternInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" multiple style="display:none;">
+            <div id="quickCollectionThumbs" style="display:flex; gap:8px; flex-wrap:wrap; flex:1;"></div>
+            <button class="secondary" id="quickAddPatternBtn" type="button">+ add pattern to collection</button>
           </section>
 
           <section class="action-bar">
@@ -2129,7 +2190,7 @@ async function renderQuickCardsSequentially(products) {
 async function reRenderVisibleQuickCards() {
   const visibleProducts = ALL_QUICK_PRODUCTS.filter(product => {
     const canvas = document.getElementById(product + 'QuickCanvas');
-    return quickPatternImage && canvas && !canvas.classList.contains('hidden');
+    return canvas && !canvas.classList.contains('hidden');
   });
   await renderQuickCardsSequentially(visibleProducts);
   if (trayPatterns.length && trayPatterns[0].img) await renderBeddingCard();
@@ -2343,10 +2404,7 @@ function boostPatternLayerContrast(layerCanvas, amount = 1.18, saturation = 1.08
 }
 
 async function renderMugMockupToCanvas(targetCanvas, options = {}) {
-  if (!quickPatternImage) {
-    showToastMessage('upload a pattern first');
-    return false;
-  }
+  const patternImg = getEffectivePatternForProduct('mug');
 
   const [base, mask, shadow, highlight, lighting] = await Promise.all([
     loadAssetImageFromCandidates([
@@ -2394,47 +2452,49 @@ async function renderMugMockupToCanvas(targetCanvas, options = {}) {
   // 1. full mug base
   ctx.drawImage(base, 0, 0, targetCanvas.width, targetCanvas.height);
 
-  // 2. repeating pattern layer
-  const patternLayer = document.createElement('canvas');
-  patternLayer.width = targetCanvas.width;
-  patternLayer.height = targetCanvas.height;
+  if (patternImg) {
+    // 2. repeating pattern layer
+    const patternLayer = document.createElement('canvas');
+    patternLayer.width = targetCanvas.width;
+    patternLayer.height = targetCanvas.height;
 
-  const pctx = patternLayer.getContext('2d');
-  pctx.imageSmoothingEnabled = true;
-  pctx.imageSmoothingQuality = 'high';
+    const pctx = patternLayer.getContext('2d');
+    pctx.imageSmoothingEnabled = true;
+    pctx.imageSmoothingQuality = 'high';
 
-  const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
+    const tile = createPatternTileCanvas(patternImg, scalePercent);
 
-  const mugOffset = getEffectiveOffsetForProduct('mug');
-  const xOffset = mugOffset.x / 100 * tile.width;
-  const yOffset = mugOffset.y / 100 * tile.height;
+    const mugOffset = getEffectiveOffsetForProduct('mug');
+    const xOffset = mugOffset.x / 100 * tile.width;
+    const yOffset = mugOffset.y / 100 * tile.height;
 
-  // Draw explicit repeated tiles for reliable Safari/Koder rendering.
-  drawRepeatedTileLayer(pctx, tile, patternLayer.width, patternLayer.height, xOffset, yOffset);
+    // Draw explicit repeated tiles for reliable Safari/Koder rendering.
+    drawRepeatedTileLayer(pctx, tile, patternLayer.width, patternLayer.height, xOffset, yOffset);
 
-  // 3. mask pattern to mug print area
-  // The mug mask is black/white, so convert white pixels into true alpha first.
-  const alphaMask = createAlphaMaskFromBlackWhiteMask(mask, patternLayer.width, patternLayer.height);
-  pctx.globalCompositeOperation = 'destination-in';
-  pctx.drawImage(alphaMask, 0, 0);
-  pctx.globalCompositeOperation = 'source-over';
+    // 3. mask pattern to mug print area
+    // The mug mask is black/white, so convert white pixels into true alpha first.
+    const alphaMask = createAlphaMaskFromBlackWhiteMask(mask, patternLayer.width, patternLayer.height);
+    pctx.globalCompositeOperation = 'destination-in';
+    pctx.drawImage(alphaMask, 0, 0);
+    pctx.globalCompositeOperation = 'source-over';
 
-  // Slightly boost the pattern before blending so it does not look washed out on ceramic.
-  boostPatternLayerContrast(patternLayer, 1.22, 1.10);
+    // Slightly boost the pattern before blending so it does not look washed out on ceramic.
+    boostPatternLayerContrast(patternLayer, 1.22, 1.10);
 
-  // 4. pattern over mug, blended into ceramic instead of pasted on top
-  ctx.save();
-  ctx.globalAlpha = 1.0;
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
+    // 4. pattern over mug, blended into ceramic instead of pasted on top
+    ctx.save();
+    ctx.globalAlpha = 1.0;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
 
-  // 5. tiny normal colour pass so light pattern details remain visible
-  ctx.save();
-  ctx.globalAlpha = 0.12;
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
+    // 5. tiny normal colour pass so light pattern details remain visible
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
+  }
 
   // 6. shadow layer for stronger mug depth
   ctx.save();
@@ -2503,13 +2563,10 @@ let notebookSideMode = 'both';
 let greetingCardMode = 'repeat';
 
 async function renderLayeredProductToCanvas(targetCanvas, config) {
-  if (!quickPatternImage) {
-    showToastMessage('upload a pattern first');
-    return false;
-  }
+  const patternImg = getEffectivePatternForProduct(config.productKey || config.productName);
 
   const base = await loadAssetImageFromCandidates(config.basePaths, (config.productName || 'product') + ' base');
-  const mask = await loadAssetImageFromCandidates(config.maskPaths, (config.productName || 'product') + ' mask');
+  const mask = patternImg ? await loadAssetImageFromCandidates(config.maskPaths, (config.productName || 'product') + ' mask') : null;
 
   const shadow = config.shadowPaths ? await loadAssetImageFromCandidates(config.shadowPaths, (config.productName || 'product') + ' shadow').catch(() => null) : null;
   const highlight = config.highlightPaths ? await loadAssetImageFromCandidates(config.highlightPaths, (config.productName || 'product') + ' highlight').catch(() => null) : null;
@@ -2525,40 +2582,42 @@ async function renderLayeredProductToCanvas(targetCanvas, config) {
 
   ctx.drawImage(base, 0, 0, targetCanvas.width, targetCanvas.height);
 
-  const patternLayer = document.createElement('canvas');
-  patternLayer.width = targetCanvas.width;
-  patternLayer.height = targetCanvas.height;
+  if (patternImg && mask) {
+    const patternLayer = document.createElement('canvas');
+    patternLayer.width = targetCanvas.width;
+    patternLayer.height = targetCanvas.height;
 
-  const pctx = patternLayer.getContext('2d');
-  pctx.imageSmoothingEnabled = true;
-  pctx.imageSmoothingQuality = 'high';
+    const pctx = patternLayer.getContext('2d');
+    pctx.imageSmoothingEnabled = true;
+    pctx.imageSmoothingQuality = 'high';
 
-  const scalePercent = config.scalePercent || document.getElementById('quickScale')?.value || config.defaultScale || 100;
-  const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
-  const layeredOffset = getEffectiveOffsetForProduct(config.productKey || config.productName);
-  const xOffset = layeredOffset.x / 100 * tile.width;
-  const yOffset = layeredOffset.y / 100 * tile.height;
+    const scalePercent = config.scalePercent || document.getElementById('quickScale')?.value || config.defaultScale || 100;
+    const tile = createPatternTileCanvas(patternImg, scalePercent);
+    const layeredOffset = getEffectiveOffsetForProduct(config.productKey || config.productName);
+    const xOffset = layeredOffset.x / 100 * tile.width;
+    const yOffset = layeredOffset.y / 100 * tile.height;
 
-  drawRepeatedTileLayer(pctx, tile, patternLayer.width, patternLayer.height, xOffset, yOffset);
+    drawRepeatedTileLayer(pctx, tile, patternLayer.width, patternLayer.height, xOffset, yOffset);
 
-  const alphaMask = createAlphaMaskFromBlackWhiteMask(mask, patternLayer.width, patternLayer.height);
-  pctx.globalCompositeOperation = 'destination-in';
-  pctx.drawImage(alphaMask, 0, 0);
-  pctx.globalCompositeOperation = 'source-over';
+    const alphaMask = createAlphaMaskFromBlackWhiteMask(mask, patternLayer.width, patternLayer.height);
+    pctx.globalCompositeOperation = 'destination-in';
+    pctx.drawImage(alphaMask, 0, 0);
+    pctx.globalCompositeOperation = 'source-over';
 
-  boostPatternLayerContrast(patternLayer, config.contrast || 1.16, config.saturation || 1.05);
+    boostPatternLayerContrast(patternLayer, config.contrast || 1.16, config.saturation || 1.05);
 
-  ctx.save();
-  ctx.globalAlpha = config.patternAlpha ?? 0.98;
-  ctx.globalCompositeOperation = config.patternBlend || 'multiply';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = config.patternAlpha ?? 0.98;
+    ctx.globalCompositeOperation = config.patternBlend || 'multiply';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
 
-  ctx.save();
-  ctx.globalAlpha = config.normalAlpha ?? 0.16;
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = config.normalAlpha ?? 0.16;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
+  }
 
   if (shadow) {
     ctx.save();
@@ -2640,10 +2699,7 @@ function getNotebookAssetsForSide(side) {
 }
 
 async function renderNotebookMockupToCanvas(targetCanvas, side = notebookSideMode, forcedScalePercent = null) {
-  if (!quickPatternImage) {
-    showToastMessage('upload a pattern first');
-    return false;
-  }
+  const patternImg = getEffectivePatternForProduct('notebook');
 
   // ONE scale source for both / left / right.
   // This prevents the single-side notebook preview from jumping back to tiny stamp mode.
@@ -2675,53 +2731,55 @@ async function renderNotebookMockupToCanvas(targetCanvas, side = notebookSideMod
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(base, 0, 0, targetCanvas.width, targetCanvas.height);
 
-  const patternLayer = document.createElement('canvas');
-  patternLayer.width = targetCanvas.width;
-  patternLayer.height = targetCanvas.height;
+  if (patternImg) {
+    const patternLayer = document.createElement('canvas');
+    patternLayer.width = targetCanvas.width;
+    patternLayer.height = targetCanvas.height;
 
-  const pctx = patternLayer.getContext('2d');
-  pctx.imageSmoothingEnabled = true;
-  pctx.imageSmoothingQuality = 'high';
+    const pctx = patternLayer.getContext('2d');
+    pctx.imageSmoothingEnabled = true;
+    pctx.imageSmoothingQuality = 'high';
 
-  const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
-  const notebookOffset = getEffectiveOffsetForProduct('notebook');
-  const xOffset = notebookOffset.x / 100 * tile.width;
-  const yOffset = notebookOffset.y / 100 * tile.height;
+    const tile = createPatternTileCanvas(patternImg, scalePercent);
+    const notebookOffset = getEffectiveOffsetForProduct('notebook');
+    const xOffset = notebookOffset.x / 100 * tile.width;
+    const yOffset = notebookOffset.y / 100 * tile.height;
 
-  drawRepeatedTileLayer(pctx, tile, patternLayer.width, patternLayer.height, xOffset, yOffset);
+    drawRepeatedTileLayer(pctx, tile, patternLayer.width, patternLayer.height, xOffset, yOffset);
 
-  const maskCanvas = document.createElement('canvas');
-  maskCanvas.width = targetCanvas.width;
-  maskCanvas.height = targetCanvas.height;
-  const mctx = maskCanvas.getContext('2d');
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = targetCanvas.width;
+    maskCanvas.height = targetCanvas.height;
+    const mctx = maskCanvas.getContext('2d');
 
-  if (side === 'front' || side === 'both') {
-    const frontAlpha = createAlphaMaskFromBlackWhiteMask(frontMask, targetCanvas.width, targetCanvas.height);
-    mctx.drawImage(frontAlpha, 0, 0);
+    if (side === 'front' || side === 'both') {
+      const frontAlpha = createAlphaMaskFromBlackWhiteMask(frontMask, targetCanvas.width, targetCanvas.height);
+      mctx.drawImage(frontAlpha, 0, 0);
+    }
+
+    if (side === 'back' || side === 'both') {
+      const backAlpha = createAlphaMaskFromBlackWhiteMask(backMask, targetCanvas.width, targetCanvas.height);
+      mctx.drawImage(backAlpha, 0, 0);
+    }
+
+    pctx.globalCompositeOperation = 'destination-in';
+    pctx.drawImage(maskCanvas, 0, 0);
+    pctx.globalCompositeOperation = 'source-over';
+
+    boostPatternLayerContrast(patternLayer, 1.14, 1.06);
+
+    ctx.save();
+    ctx.globalAlpha = 0.96;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
   }
-
-  if (side === 'back' || side === 'both') {
-    const backAlpha = createAlphaMaskFromBlackWhiteMask(backMask, targetCanvas.width, targetCanvas.height);
-    mctx.drawImage(backAlpha, 0, 0);
-  }
-
-  pctx.globalCompositeOperation = 'destination-in';
-  pctx.drawImage(maskCanvas, 0, 0);
-  pctx.globalCompositeOperation = 'source-over';
-
-  boostPatternLayerContrast(patternLayer, 1.14, 1.06);
-
-  ctx.save();
-  ctx.globalAlpha = 0.96;
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
-
-  ctx.save();
-  ctx.globalAlpha = 0.18;
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
 
   return true;
 }
@@ -2813,6 +2871,147 @@ function getEffectiveOffsetForProduct(product) {
     y: Number(document.getElementById('quickY')?.value || 0)
   };
 }
+
+// Lets a single card use a different pattern from the collection instead
+// of the default upload, so a designer can fill 3 chosen mock-ups with 3
+// different patterns in one pass rather than re-uploading + regenerating
+// per pattern.
+function getEffectivePatternForProduct(product) {
+  const override = productOverrides[product];
+  if (override && override.patternImg) return override.patternImg;
+  return quickPatternImage;
+}
+
+/* ---------- per-card pattern collection ----------
+   Extra patterns a designer can assign to individual mock-up cards
+   without disturbing the default (main) uploaded pattern, so a handful
+   of chosen listings can each show a different design in one pass. */
+
+let quickPatternCollection = [];
+let quickCollectionIdCounter = 0;
+
+function addQuickCollectionPattern(src) {
+  quickCollectionIdCounter++;
+  const entry = { id: quickCollectionIdCounter, src, img: null, name: 'pattern ' + (quickPatternCollection.length + 2) };
+  quickPatternCollection.push(entry);
+  renderCollectionThumbs();
+
+  const img = new Image();
+  img.onload = () => {
+    entry.img = img;
+    renderAllPatternSwatchRows();
+  };
+  img.src = src;
+}
+
+function renderCollectionThumbs() {
+  const wrap = document.getElementById('quickCollectionThumbs');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  quickPatternCollection.forEach(entry => {
+    const thumb = document.createElement('div');
+    thumb.className = 'collection-thumb';
+    thumb.style.backgroundImage = `url(${entry.src})`;
+    thumb.title = entry.name;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'remove-thumb';
+    removeBtn.textContent = '×';
+    removeBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      quickPatternCollection = quickPatternCollection.filter(p => p.id !== entry.id);
+      ALL_QUICK_PRODUCTS.forEach(product => {
+        if (productOverrides[product]?.patternImg === entry.img) {
+          delete productOverrides[product].patternImg;
+          renderQuickCard(product);
+          if (currentPreviewProduct === product) openProductPreview(product);
+        }
+      });
+      renderCollectionThumbs();
+      renderAllPatternSwatchRows();
+    });
+    thumb.appendChild(removeBtn);
+
+    wrap.appendChild(thumb);
+  });
+}
+
+function renderPatternSwatchRow(product) {
+  const row = document.getElementById(product + 'SwatchRow');
+  if (!row) return;
+
+  if (!quickPatternSrc && !quickPatternCollection.length) {
+    row.innerHTML = '';
+    row.classList.add('hidden');
+    return;
+  }
+
+  row.classList.remove('hidden');
+  row.innerHTML = '';
+
+  const overrideImg = productOverrides[product]?.patternImg || null;
+
+  if (quickPatternSrc) {
+    const defaultBtn = document.createElement('button');
+    defaultBtn.type = 'button';
+    defaultBtn.className = 'pattern-swatch' + (!overrideImg ? ' active' : '');
+    defaultBtn.title = 'default pattern';
+    defaultBtn.style.backgroundImage = `url(${quickPatternSrc})`;
+    defaultBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (productOverrides[product]) delete productOverrides[product].patternImg;
+      renderPatternSwatchRow(product);
+      renderQuickCard(product);
+      if (currentPreviewProduct === product) openProductPreview(product);
+    });
+    row.appendChild(defaultBtn);
+  }
+
+  quickPatternCollection.forEach(entry => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pattern-swatch' + (overrideImg === entry.img ? ' active' : '');
+    btn.title = entry.name;
+    btn.style.backgroundImage = `url(${entry.src})`;
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (!entry.img) return;
+      productOverrides[product] = productOverrides[product] || {};
+      productOverrides[product].patternImg = entry.img;
+      renderPatternSwatchRow(product);
+      renderQuickCard(product);
+      if (currentPreviewProduct === product) openProductPreview(product);
+    });
+    row.appendChild(btn);
+  });
+}
+
+function renderAllPatternSwatchRows() {
+  ALL_QUICK_PRODUCTS.forEach(renderPatternSwatchRow);
+}
+
+document.querySelectorAll('#quickGrid .mock-card[data-product]').forEach(card => {
+  const product = card.dataset.product;
+  const row = document.createElement('div');
+  row.className = 'pattern-swatch-row hidden';
+  row.id = product + 'SwatchRow';
+  const preview = card.querySelector('.card-preview');
+  if (preview) preview.insertAdjacentElement('afterend', row);
+});
+
+document.getElementById('quickAddPatternBtn')?.addEventListener('click', () => {
+  document.getElementById('quickAddPatternInput')?.click();
+});
+
+document.getElementById('quickAddPatternInput')?.addEventListener('change', e => {
+  [...e.target.files].forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => addQuickCollectionPattern(ev.target.result);
+    reader.readAsDataURL(file);
+  });
+  e.target.value = '';
+});
 
 
 
@@ -2931,10 +3130,7 @@ function getMaskOpaqueBoundingBox(maskImage) {
 }
 
 async function renderGreetingCardMockupToCanvas(targetCanvas, mode = greetingCardMode, forcedScalePercent = null) {
-  if (!quickPatternImage) {
-    showToastMessage('upload a pattern first');
-    return false;
-  }
+  const patternImg = getEffectivePatternForProduct('greetingcard');
 
   const { base, mask } = await loadGreetingCardAssets();
   if (!greetingCardMaskBBox) greetingCardMaskBBox = getMaskOpaqueBoundingBox(mask);
@@ -2950,54 +3146,56 @@ async function renderGreetingCardMockupToCanvas(targetCanvas, mode = greetingCar
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(base, 0, 0, w, h);
 
-  const patternLayer = document.createElement('canvas');
-  patternLayer.width = w;
-  patternLayer.height = h;
-  const pctx = patternLayer.getContext('2d');
-  pctx.imageSmoothingEnabled = true;
-  pctx.imageSmoothingQuality = 'high';
+  if (patternImg) {
+    const patternLayer = document.createElement('canvas');
+    patternLayer.width = w;
+    patternLayer.height = h;
+    const pctx = patternLayer.getContext('2d');
+    pctx.imageSmoothingEnabled = true;
+    pctx.imageSmoothingQuality = 'high';
 
-  if (mode === 'single') {
-    const bbox = greetingCardMaskBBox;
-    const patW = quickPatternImage.naturalWidth || quickPatternImage.width;
-    const patH = quickPatternImage.naturalHeight || quickPatternImage.height;
-    const boxW = bbox.width * 0.86;
-    const boxH = bbox.height * 0.86;
-    const fitScale = Math.min(boxW / patW, boxH / patH);
-    const drawW = patW * fitScale;
-    const drawH = patH * fitScale;
-    const drawX = bbox.x + (bbox.width - drawW) / 2;
-    const drawY = bbox.y + (bbox.height - drawH) / 2;
-    if (fitScale < 0.5) {
-      const sharp = highQualityDownscale(quickPatternImage, Math.round(drawW), Math.round(drawH));
-      pctx.drawImage(sharp, drawX, drawY, drawW, drawH);
+    if (mode === 'single') {
+      const bbox = greetingCardMaskBBox;
+      const patW = patternImg.naturalWidth || patternImg.width;
+      const patH = patternImg.naturalHeight || patternImg.height;
+      const boxW = bbox.width * 0.86;
+      const boxH = bbox.height * 0.86;
+      const fitScale = Math.min(boxW / patW, boxH / patH);
+      const drawW = patW * fitScale;
+      const drawH = patH * fitScale;
+      const drawX = bbox.x + (bbox.width - drawW) / 2;
+      const drawY = bbox.y + (bbox.height - drawH) / 2;
+      if (fitScale < 0.5) {
+        const sharp = highQualityDownscale(patternImg, Math.round(drawW), Math.round(drawH));
+        pctx.drawImage(sharp, drawX, drawY, drawW, drawH);
+      } else {
+        pctx.drawImage(patternImg, drawX, drawY, drawW, drawH);
+      }
     } else {
-      pctx.drawImage(quickPatternImage, drawX, drawY, drawW, drawH);
+      const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('greetingcard');
+      const tile = createPatternTileCanvas(patternImg, scalePercent);
+      const gcOffset = getEffectiveOffsetForProduct('greetingcard');
+      drawRepeatedTileLayer(pctx, tile, w, h, gcOffset.x / 100 * tile.width, gcOffset.y / 100 * tile.height);
     }
-  } else {
-    const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('greetingcard');
-    const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
-    const gcOffset = getEffectiveOffsetForProduct('greetingcard');
-    drawRepeatedTileLayer(pctx, tile, w, h, gcOffset.x / 100 * tile.width, gcOffset.y / 100 * tile.height);
+
+    pctx.globalCompositeOperation = 'destination-in';
+    pctx.drawImage(mask, 0, 0, w, h);
+    pctx.globalCompositeOperation = 'source-over';
+
+    boostPatternLayerContrast(patternLayer, 1.10, 1.05);
+
+    ctx.save();
+    ctx.globalAlpha = 0.94;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
   }
-
-  pctx.globalCompositeOperation = 'destination-in';
-  pctx.drawImage(mask, 0, 0, w, h);
-  pctx.globalCompositeOperation = 'source-over';
-
-  boostPatternLayerContrast(patternLayer, 1.10, 1.05);
-
-  ctx.save();
-  ctx.globalAlpha = 0.94;
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
-
-  ctx.save();
-  ctx.globalAlpha = 0.12;
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
 
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
@@ -3024,10 +3222,7 @@ async function loadKitchenTowelAssets() {
 }
 
 async function renderKitchenTowelMockupToCanvas(targetCanvas, forcedScalePercent = null) {
-  if (!quickPatternImage) {
-    showToastMessage('upload a pattern first');
-    return false;
-  }
+  const patternImg = getEffectivePatternForProduct('kitchentowel');
 
   const { base, mask } = await loadKitchenTowelAssets();
   const w = base.naturalWidth || base.width;
@@ -3041,36 +3236,38 @@ async function renderKitchenTowelMockupToCanvas(targetCanvas, forcedScalePercent
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(base, 0, 0, w, h);
 
-  const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('kitchentowel');
-  const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
-  const offset = getEffectiveOffsetForProduct('kitchentowel');
+  if (patternImg) {
+    const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('kitchentowel');
+    const tile = createPatternTileCanvas(patternImg, scalePercent);
+    const offset = getEffectiveOffsetForProduct('kitchentowel');
 
-  const patternLayer = document.createElement('canvas');
-  patternLayer.width = w;
-  patternLayer.height = h;
-  const pctx = patternLayer.getContext('2d');
-  pctx.imageSmoothingEnabled = true;
-  pctx.imageSmoothingQuality = 'high';
-  drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
+    const patternLayer = document.createElement('canvas');
+    patternLayer.width = w;
+    patternLayer.height = h;
+    const pctx = patternLayer.getContext('2d');
+    pctx.imageSmoothingEnabled = true;
+    pctx.imageSmoothingQuality = 'high';
+    drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
 
-  pctx.globalCompositeOperation = 'destination-in';
-  pctx.drawImage(mask, 0, 0, w, h);
-  pctx.globalCompositeOperation = 'source-over';
+    pctx.globalCompositeOperation = 'destination-in';
+    pctx.drawImage(mask, 0, 0, w, h);
+    pctx.globalCompositeOperation = 'source-over';
 
-  boostPatternLayerContrast(patternLayer, 1.10, 1.05);
+    boostPatternLayerContrast(patternLayer, 1.10, 1.05);
 
-  // soft fabric tuning, matching the floor cushion feel
-  ctx.save();
-  ctx.globalAlpha = 0.90;
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
+    // soft fabric tuning, matching the floor cushion feel
+    ctx.save();
+    ctx.globalAlpha = 0.90;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
 
-  ctx.save();
-  ctx.globalAlpha = 0.14;
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
+  }
 
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
@@ -3097,10 +3294,7 @@ async function loadBucketHatAssets() {
 }
 
 async function renderBucketHatMockupToCanvas(targetCanvas, forcedScalePercent = null) {
-  if (!quickPatternImage) {
-    showToastMessage('upload a pattern first');
-    return false;
-  }
+  const patternImg = getEffectivePatternForProduct('buckethat');
 
   const { base, mask } = await loadBucketHatAssets();
   const w = base.naturalWidth || base.width;
@@ -3114,36 +3308,38 @@ async function renderBucketHatMockupToCanvas(targetCanvas, forcedScalePercent = 
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(base, 0, 0, w, h);
 
-  const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('buckethat');
-  const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
-  const offset = getEffectiveOffsetForProduct('buckethat');
+  if (patternImg) {
+    const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('buckethat');
+    const tile = createPatternTileCanvas(patternImg, scalePercent);
+    const offset = getEffectiveOffsetForProduct('buckethat');
 
-  const patternLayer = document.createElement('canvas');
-  patternLayer.width = w;
-  patternLayer.height = h;
-  const pctx = patternLayer.getContext('2d');
-  pctx.imageSmoothingEnabled = true;
-  pctx.imageSmoothingQuality = 'high';
-  drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
+    const patternLayer = document.createElement('canvas');
+    patternLayer.width = w;
+    patternLayer.height = h;
+    const pctx = patternLayer.getContext('2d');
+    pctx.imageSmoothingEnabled = true;
+    pctx.imageSmoothingQuality = 'high';
+    drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
 
-  pctx.globalCompositeOperation = 'destination-in';
-  pctx.drawImage(mask, 0, 0, w, h);
-  pctx.globalCompositeOperation = 'source-over';
+    pctx.globalCompositeOperation = 'destination-in';
+    pctx.drawImage(mask, 0, 0, w, h);
+    pctx.globalCompositeOperation = 'source-over';
 
-  boostPatternLayerContrast(patternLayer, 1.10, 1.05);
+    boostPatternLayerContrast(patternLayer, 1.10, 1.05);
 
-  // soft canvas-fabric tuning, similar feel to the floor cushion / kitchen towel
-  ctx.save();
-  ctx.globalAlpha = 0.90;
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
+    // soft canvas-fabric tuning, similar feel to the floor cushion / kitchen towel
+    ctx.save();
+    ctx.globalAlpha = 0.90;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
 
-  ctx.save();
-  ctx.globalAlpha = 0.14;
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
+  }
 
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
@@ -3170,10 +3366,7 @@ async function loadBeachTowelAssets() {
 }
 
 async function renderBeachTowelMockupToCanvas(targetCanvas, forcedScalePercent = null) {
-  if (!quickPatternImage) {
-    showToastMessage('upload a pattern first');
-    return false;
-  }
+  const patternImg = getEffectivePatternForProduct('beachtowel');
 
   const { base, mask } = await loadBeachTowelAssets();
   const w = base.naturalWidth || base.width;
@@ -3187,36 +3380,38 @@ async function renderBeachTowelMockupToCanvas(targetCanvas, forcedScalePercent =
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(base, 0, 0, w, h);
 
-  const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('beachtowel');
-  const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
-  const offset = getEffectiveOffsetForProduct('beachtowel');
+  if (patternImg) {
+    const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('beachtowel');
+    const tile = createPatternTileCanvas(patternImg, scalePercent);
+    const offset = getEffectiveOffsetForProduct('beachtowel');
 
-  const patternLayer = document.createElement('canvas');
-  patternLayer.width = w;
-  patternLayer.height = h;
-  const pctx = patternLayer.getContext('2d');
-  pctx.imageSmoothingEnabled = true;
-  pctx.imageSmoothingQuality = 'high';
-  drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
+    const patternLayer = document.createElement('canvas');
+    patternLayer.width = w;
+    patternLayer.height = h;
+    const pctx = patternLayer.getContext('2d');
+    pctx.imageSmoothingEnabled = true;
+    pctx.imageSmoothingQuality = 'high';
+    drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
 
-  pctx.globalCompositeOperation = 'destination-in';
-  pctx.drawImage(mask, 0, 0, w, h);
-  pctx.globalCompositeOperation = 'source-over';
+    pctx.globalCompositeOperation = 'destination-in';
+    pctx.drawImage(mask, 0, 0, w, h);
+    pctx.globalCompositeOperation = 'source-over';
 
-  boostPatternLayerContrast(patternLayer, 1.10, 1.05);
+    boostPatternLayerContrast(patternLayer, 1.10, 1.05);
 
-  // soft terry-cloth fabric tuning, matching the towel/hat feel
-  ctx.save();
-  ctx.globalAlpha = 0.90;
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
+    // soft terry-cloth fabric tuning, matching the towel/hat feel
+    ctx.save();
+    ctx.globalAlpha = 0.90;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
 
-  ctx.save();
-  ctx.globalAlpha = 0.14;
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
+  }
 
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
@@ -3251,10 +3446,7 @@ async function loadBikiniAssets() {
 }
 
 async function renderBikiniSetMockupToCanvas(targetCanvas, forcedScalePercent = null) {
-  if (!quickPatternImage) {
-    showToastMessage('upload a pattern first');
-    return false;
-  }
+  const patternImg = getEffectivePatternForProduct('bikiniset');
 
   const { base, patternMask, liningMask } = await loadBikiniAssets();
   const w = base.naturalWidth || base.width;
@@ -3286,35 +3478,37 @@ async function renderBikiniSetMockupToCanvas(targetCanvas, forcedScalePercent = 
   ctx.restore();
 
   // the outer fabric shows the uploaded seamless pattern
-  const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('bikiniset');
-  const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
-  const offset = getEffectiveOffsetForProduct('bikiniset');
+  if (patternImg) {
+    const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('bikiniset');
+    const tile = createPatternTileCanvas(patternImg, scalePercent);
+    const offset = getEffectiveOffsetForProduct('bikiniset');
 
-  const patternLayer = document.createElement('canvas');
-  patternLayer.width = w;
-  patternLayer.height = h;
-  const pctx = patternLayer.getContext('2d');
-  pctx.imageSmoothingEnabled = true;
-  pctx.imageSmoothingQuality = 'high';
-  drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
+    const patternLayer = document.createElement('canvas');
+    patternLayer.width = w;
+    patternLayer.height = h;
+    const pctx = patternLayer.getContext('2d');
+    pctx.imageSmoothingEnabled = true;
+    pctx.imageSmoothingQuality = 'high';
+    drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
 
-  pctx.globalCompositeOperation = 'destination-in';
-  pctx.drawImage(patternMask, 0, 0, w, h);
-  pctx.globalCompositeOperation = 'source-over';
+    pctx.globalCompositeOperation = 'destination-in';
+    pctx.drawImage(patternMask, 0, 0, w, h);
+    pctx.globalCompositeOperation = 'source-over';
 
-  boostPatternLayerContrast(patternLayer, 1.10, 1.05);
+    boostPatternLayerContrast(patternLayer, 1.10, 1.05);
 
-  ctx.save();
-  ctx.globalAlpha = 0.90;
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.90;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
 
-  ctx.save();
-  ctx.globalAlpha = 0.14;
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
+  }
 
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
@@ -3374,10 +3568,7 @@ async function loadSwimsuitAssets() {
 }
 
 async function renderSwimsuitMockupToCanvas(targetCanvas, forcedScalePercent = null) {
-  if (!quickPatternImage) {
-    showToastMessage('upload a pattern first');
-    return false;
-  }
+  const patternImg = getEffectivePatternForProduct('swimsuit');
 
   const { base, patternMask, liningMasks } = await loadSwimsuitAssets();
   const w = base.naturalWidth || base.width;
@@ -3417,35 +3608,37 @@ async function renderSwimsuitMockupToCanvas(targetCanvas, forcedScalePercent = n
   ctx.restore();
 
   // the outer fabric shows the uploaded seamless pattern
-  const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('swimsuit');
-  const tile = createPatternTileCanvas(quickPatternImage, scalePercent);
-  const offset = getEffectiveOffsetForProduct('swimsuit');
+  if (patternImg) {
+    const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('swimsuit');
+    const tile = createPatternTileCanvas(patternImg, scalePercent);
+    const offset = getEffectiveOffsetForProduct('swimsuit');
 
-  const patternLayer = document.createElement('canvas');
-  patternLayer.width = w;
-  patternLayer.height = h;
-  const pctx = patternLayer.getContext('2d');
-  pctx.imageSmoothingEnabled = true;
-  pctx.imageSmoothingQuality = 'high';
-  drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
+    const patternLayer = document.createElement('canvas');
+    patternLayer.width = w;
+    patternLayer.height = h;
+    const pctx = patternLayer.getContext('2d');
+    pctx.imageSmoothingEnabled = true;
+    pctx.imageSmoothingQuality = 'high';
+    drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
 
-  pctx.globalCompositeOperation = 'destination-in';
-  pctx.drawImage(patternMask, 0, 0, w, h);
-  pctx.globalCompositeOperation = 'source-over';
+    pctx.globalCompositeOperation = 'destination-in';
+    pctx.drawImage(patternMask, 0, 0, w, h);
+    pctx.globalCompositeOperation = 'source-over';
 
-  boostPatternLayerContrast(patternLayer, 1.10, 1.05);
+    boostPatternLayerContrast(patternLayer, 1.10, 1.05);
 
-  ctx.save();
-  ctx.globalAlpha = 0.90;
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.90;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
 
-  ctx.save();
-  ctx.globalAlpha = 0.14;
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(patternLayer, 0, 0);
-  ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
+  }
 
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
@@ -3473,7 +3666,7 @@ async function renderProductToCanvas(product, targetCanvas) {
 async function renderQuickCard(product) {
   const canvas = document.getElementById(product + 'QuickCanvas');
   const placeholder = document.getElementById(product + 'Placeholder');
-  if (!canvas || !quickPatternImage) return;
+  if (!canvas) return;
 
   try {
     await renderProductToCanvas(product, canvas);
@@ -3552,12 +3745,8 @@ function setupUpload(inputId, cardId, stripId, thumbId, fileNameId) {
         quickPatternImage = new Image();
         quickPatternImage.onload = () => {
           buildPatternWorkingCopy(quickPatternImage);
-          ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset','swimsuit'].forEach(product => {
-            const canvas = document.getElementById(product + 'QuickCanvas');
-            const placeholder = document.getElementById(product + 'Placeholder');
-            if (canvas) canvas.classList.add('hidden');
-            if (placeholder) placeholder.classList.remove('hidden');
-          });
+          renderAllPatternSwatchRows();
+          renderQuickCardsSequentially(ALL_QUICK_PRODUCTS);
         };
         quickPatternImage.src = ev.target.result;
       }
@@ -3580,10 +3769,8 @@ document.getElementById('quickReplaceBtn').addEventListener('click', () => {
   quickPatternSrc = '';
   document.getElementById('quickUploadStrip').classList.add('hidden');
   document.getElementById('quickUploadCard').classList.remove('hidden');
-  ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset','swimsuit'].forEach(product => {
-    document.getElementById(product + 'QuickCanvas')?.classList.add('hidden');
-    document.getElementById(product + 'Placeholder')?.classList.remove('hidden');
-  });
+  renderAllPatternSwatchRows();
+  renderQuickCardsSequentially(ALL_QUICK_PRODUCTS);
 });
 
 document.getElementById('resetScaleBtn')?.addEventListener('click', () => {
@@ -3896,60 +4083,74 @@ document.getElementById('downloadQuickBtn').addEventListener('click', async () =
 
   if (selected.includes('mug')) {
     const mugCanvas = document.getElementById('mugQuickCanvas');
-    if (quickPatternImage && mugCanvas) {
+    if (getEffectivePatternForProduct('mug') && mugCanvas) {
       if (mugCanvas.classList.contains('hidden')) await renderQuickCard('mug');
   renderQuickCard('notebook');
   renderQuickCard('tumbler');
   renderQuickCard('floorcushion');
       downloadCanvasPNG(mugCanvas, 'mug_mockup.png');
+    } else if (mugCanvas) {
+      showToastMessage('upload a pattern for mug first');
     }
   }
 
   if (selected.includes('greetingcard')) {
     const gcCanvas = document.getElementById('greetingcardQuickCanvas');
-    if (quickPatternImage && gcCanvas) {
+    if (getEffectivePatternForProduct('greetingcard') && gcCanvas) {
       if (gcCanvas.classList.contains('hidden')) await renderQuickCard('greetingcard');
       downloadCanvasPNG(gcCanvas, 'greeting_card_mockup.png');
+    } else if (gcCanvas) {
+      showToastMessage('upload a pattern for greeting card first');
     }
   }
 
   if (selected.includes('kitchentowel')) {
     const towelCanvas = document.getElementById('kitchentowelQuickCanvas');
-    if (quickPatternImage && towelCanvas) {
+    if (getEffectivePatternForProduct('kitchentowel') && towelCanvas) {
       if (towelCanvas.classList.contains('hidden')) await renderQuickCard('kitchentowel');
       downloadCanvasPNG(towelCanvas, 'kitchen_towel_mockup.png');
+    } else if (towelCanvas) {
+      showToastMessage('upload a pattern for kitchen towel first');
     }
   }
 
   if (selected.includes('buckethat')) {
     const hatCanvas = document.getElementById('buckethatQuickCanvas');
-    if (quickPatternImage && hatCanvas) {
+    if (getEffectivePatternForProduct('buckethat') && hatCanvas) {
       if (hatCanvas.classList.contains('hidden')) await renderQuickCard('buckethat');
       downloadCanvasPNG(hatCanvas, 'bucket_hat_mockup.png');
+    } else if (hatCanvas) {
+      showToastMessage('upload a pattern for bucket hat first');
     }
   }
 
   if (selected.includes('beachtowel')) {
     const beachTowelCanvas = document.getElementById('beachtowelQuickCanvas');
-    if (quickPatternImage && beachTowelCanvas) {
+    if (getEffectivePatternForProduct('beachtowel') && beachTowelCanvas) {
       if (beachTowelCanvas.classList.contains('hidden')) await renderQuickCard('beachtowel');
       downloadCanvasPNG(beachTowelCanvas, 'beach_towel_mockup.png');
+    } else if (beachTowelCanvas) {
+      showToastMessage('upload a pattern for beach towel first');
     }
   }
 
   if (selected.includes('bikiniset')) {
     const bikiniCanvas = document.getElementById('bikinisetQuickCanvas');
-    if (quickPatternImage && bikiniCanvas) {
+    if (getEffectivePatternForProduct('bikiniset') && bikiniCanvas) {
       if (bikiniCanvas.classList.contains('hidden')) await renderQuickCard('bikiniset');
       downloadCanvasPNG(bikiniCanvas, 'bikini_set_mockup.png');
+    } else if (bikiniCanvas) {
+      showToastMessage('upload a pattern for bikini set first');
     }
   }
 
   if (selected.includes('swimsuit')) {
     const swimsuitCanvas = document.getElementById('swimsuitQuickCanvas');
-    if (quickPatternImage && swimsuitCanvas) {
+    if (getEffectivePatternForProduct('swimsuit') && swimsuitCanvas) {
       if (swimsuitCanvas.classList.contains('hidden')) await renderQuickCard('swimsuit');
       downloadCanvasPNG(swimsuitCanvas, 'swimsuit_mockup.png');
+    } else if (swimsuitCanvas) {
+      showToastMessage('upload a pattern for swimsuit first');
     }
   }
 
@@ -4054,7 +4255,7 @@ async function collectLookbookPages(items) {
 
     if (item.kind === 'product') {
       canvas = document.getElementById(item.id + 'QuickCanvas');
-      if (!quickPatternImage || !canvas) continue;
+      if (!getEffectivePatternForProduct(item.id) || !canvas) continue;
       if (canvas.classList.contains('hidden')) await renderQuickCard(item.id);
       if (canvas.classList.contains('hidden')) continue;
     } else if (item.kind === 'scene' && item.id === 'bedding') {
@@ -4196,10 +4397,6 @@ document.getElementById('downloadLookbookBtn')?.addEventListener('click', openLo
 document.getElementById('downloadLookbookBtnCreative')?.addEventListener('click', openLookbookSettings);
 
 document.getElementById('generateQuickBtn').addEventListener('click', async () => {
-  if (!quickPatternImage) {
-    alert('upload a pattern first');
-    return;
-  }
   await renderQuickCardsSequentially(ALL_QUICK_PRODUCTS);
 });
 
@@ -4310,7 +4507,7 @@ let quickSliderDebounceTimer = null;
     quickSliderDebounceTimer = setTimeout(async () => {
       await reRenderVisibleQuickCards();
       const largeCanvas = document.getElementById('largePreviewCanvas');
-      if (quickPatternImage && largeCanvas && !largeCanvas.classList.contains('hidden') && currentPreviewProduct) {
+      if (largeCanvas && !largeCanvas.classList.contains('hidden') && currentPreviewProduct) {
         openProductPreview(currentPreviewProduct);
       }
     }, 150);
@@ -4382,6 +4579,12 @@ document.getElementById('downloadPreviewBtn')?.addEventListener('click', () => {
 document.getElementById('closePreviewBtn').addEventListener('click', () => {
   previewOverlay.classList.add('hidden');
 });
+
+// Show every mock-up's real, unpatterned studio photo right away so a
+// designer can see the full catalogue before uploading anything. The
+// moment a pattern is uploaded, the same pipeline re-renders it in place.
+renderQuickCardsSequentially(ALL_QUICK_PRODUCTS);
+
 console.log('Mock-up Studio asset path fix loaded');
 </script>
 </body>
