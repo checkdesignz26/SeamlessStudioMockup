@@ -991,6 +991,7 @@ input[type=range] {
   flex-wrap: wrap;
   padding: 14px 20px;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .lookbook-editor-toolbar h2 {
@@ -1014,6 +1015,7 @@ input[type=range] {
   padding: 10px 20px;
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .lookbook-editor-patterns .lookbook-pattern-swatch {
@@ -1097,18 +1099,39 @@ input[type=range] {
   box-shadow: 0 0 0 1px rgba(0,0,0,0.3), 0 0 0 3px var(--accent);
 }
 
+/* Both control panels stay permanently mounted at a fixed height and are
+   only ever toggled by opacity/visibility (never display/height). Selecting
+   a different kind of layer used to swap which panel had display:none,
+   which changed the toolbar's height and shifted the canvas out from under
+   an in-progress click — turning a single click, or the second click of a
+   double-click, into a click on whatever had scrolled into place instead.
+   A constant-height wrapper makes that reflow impossible. */
+.lookbook-editor-controls-wrapper {
+  position: relative;
+  height: 60px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.16);
+}
+
 .lookbook-editor-layer-controls {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 10px 20px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(0,0,0,0.16);
   flex-wrap: wrap;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
-.lookbook-editor-layer-controls.hidden {
-  display: none;
+.lookbook-editor-layer-controls.il-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .lookbook-editor-layer-controls label {
@@ -1119,6 +1142,10 @@ input[type=range] {
 
 .lookbook-editor-layer-controls input[type="range"] {
   width: 160px;
+}
+
+.lookbook-editor-layer-controls select {
+  width: auto;
 }
 
 .lookbook-viewport {
@@ -1164,9 +1191,24 @@ input[type=range] {
   font-family: inherit;
   font-size: 24px;
   line-height: 1.3;
+  user-select: text;
+}
+
+/* The actual contenteditable lives in its own child so the delete/resize
+   handle buttons never end up as editable DOM content (that's what made
+   typing glitch out — the browser was treating the buttons as text). */
+.text-item-content {
+  width: 100%;
+  min-height: 100%;
   padding: 6px 10px;
+  box-sizing: border-box;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
   cursor: text;
   outline: none;
+  user-select: text;
 }
 
 .canvas-item .item-resize-handle {
@@ -1861,6 +1903,7 @@ input[type=text] {
     <div class="lookbook-editor-toolbar">
       <h2>design your lookbook</h2>
       <div class="lookbook-editor-actions">
+        <button class="secondary" id="ilAddSelectedBtn" type="button">+ add selected mock-ups</button>
         <button class="secondary" id="ilAddTextBtn" type="button">+ add text</button>
         <button class="secondary" id="ilDeleteItemBtn" type="button" disabled>delete selected</button>
         <button class="secondary" id="ilExportPngBtn" type="button">export page as PNG</button>
@@ -1883,29 +1926,36 @@ input[type=text] {
       <div class="lookbook-colorway-strip" id="ilColorwayStrip"></div>
     </div>
 
-    <div id="ilLayerControls" class="lookbook-editor-layer-controls hidden">
-      <label>pattern scale <span id="ilScaleValue">100%</span></label>
-      <input type="range" id="ilScaleSlider" min="20" max="400" value="100">
-      <label>rotate <span id="ilRotateValue">0°</span></label>
-      <input type="range" id="ilRotateSlider" min="0" max="360" value="0">
+    <div class="lookbook-editor-patterns" id="ilCanvasPaletteRow">
+      <span style="font-size:12px; color:var(--muted);">add a colour swatch:</span>
+      <div class="lookbook-palette-strip" id="ilCanvasPaletteStrip"></div>
     </div>
 
-    <div id="ilTextControls" class="lookbook-editor-layer-controls hidden">
-      <label>font</label>
-      <select id="ilFontSelect">
-        <option value="'Quicksand', sans-serif">Quicksand</option>
-        <option value="'Caveat', cursive">Caveat (handwritten)</option>
-        <option value="Georgia, serif">Georgia</option>
-        <option value="'Playfair Display', serif">Playfair Display</option>
-        <option value="'Helvetica Neue', Arial, sans-serif">Helvetica</option>
-        <option value="'Courier New', monospace">Courier New</option>
-        <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
-        <option value="Verdana, sans-serif">Verdana</option>
-      </select>
-      <label>size <span id="ilFontSizeValue">24px</span></label>
-      <input type="range" id="ilFontSizeSlider" min="10" max="96" value="24">
-      <label>colour</label>
-      <div class="lookbook-palette-strip" id="ilPaletteStrip"></div>
+    <div class="lookbook-editor-controls-wrapper" id="ilControlsWrapper">
+      <div id="ilLayerControls" class="lookbook-editor-layer-controls">
+        <label>pattern scale <span id="ilScaleValue">100%</span></label>
+        <input type="range" id="ilScaleSlider" min="20" max="400" value="100">
+        <label>rotate <span id="ilRotateValue">0°</span></label>
+        <input type="range" id="ilRotateSlider" min="0" max="360" value="0">
+      </div>
+
+      <div id="ilTextControls" class="lookbook-editor-layer-controls">
+        <label>font</label>
+        <select id="ilFontSelect">
+          <option value="'Quicksand', sans-serif">Quicksand</option>
+          <option value="'Caveat', cursive">Caveat (handwritten)</option>
+          <option value="Georgia, serif">Georgia</option>
+          <option value="'Playfair Display', serif">Playfair Display</option>
+          <option value="'Helvetica Neue', Arial, sans-serif">Helvetica</option>
+          <option value="'Courier New', monospace">Courier New</option>
+          <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+          <option value="Verdana, sans-serif">Verdana</option>
+        </select>
+        <label>size <span id="ilFontSizeValue">24px</span></label>
+        <input type="range" id="ilFontSizeSlider" min="10" max="96" value="24">
+        <label>colour</label>
+        <div class="lookbook-palette-strip" id="ilPaletteStrip"></div>
+      </div>
     </div>
 
     <div class="lookbook-viewport" id="lookbookViewport"></div>
@@ -4751,9 +4801,20 @@ function ilSelectItem(item) {
   const deleteBtn = document.getElementById('ilDeleteItemBtn');
   if (deleteBtn) deleteBtn.disabled = false;
 
+  // Deferred a tick: the control panels are opacity/visibility-toggled
+  // now (see .lookbook-editor-controls-wrapper), so this no longer moves
+  // anything — but keeping it off the same synchronous turn as the
+  // mousedown that likely triggered this selection is cheap insurance
+  // against ever reintroducing a mid-click reflow here.
+  setTimeout(() => ilRefreshSelectionControls(item), 0);
+}
+
+function ilRefreshSelectionControls(item) {
+  if (ilSelectedItem !== item) return;
+
   const layerControls = document.getElementById('ilLayerControls');
   if (item.dataset.hasPattern === 'true') {
-    layerControls.classList.remove('hidden');
+    layerControls.classList.add('il-active');
     const scale = item.dataset.scale || '100';
     const rotate = item.dataset.rotate || '0';
     document.getElementById('ilScaleSlider').value = scale;
@@ -4761,19 +4822,19 @@ function ilSelectItem(item) {
     document.getElementById('ilScaleValue').textContent = scale + '%';
     document.getElementById('ilRotateValue').textContent = rotate + '°';
   } else {
-    layerControls.classList.add('hidden');
+    layerControls.classList.remove('il-active');
   }
 
   const textControls = document.getElementById('ilTextControls');
   if (item.classList.contains('text-item')) {
-    textControls.classList.remove('hidden');
+    textControls.classList.add('il-active');
     const size = item.dataset.fontSize || '24';
     document.getElementById('ilFontSelect').value = item.dataset.font || "'Quicksand', sans-serif";
     document.getElementById('ilFontSizeSlider').value = size;
     document.getElementById('ilFontSizeValue').textContent = size + 'px';
     ilRenderPaletteStrip(item.style.color);
   } else {
-    textControls.classList.add('hidden');
+    textControls.classList.remove('il-active');
   }
 }
 
@@ -4782,8 +4843,8 @@ function ilDeselectAll() {
   ilSelectedItem = null;
   const deleteBtn = document.getElementById('ilDeleteItemBtn');
   if (deleteBtn) deleteBtn.disabled = true;
-  document.getElementById('ilLayerControls')?.classList.add('hidden');
-  document.getElementById('ilTextControls')?.classList.add('hidden');
+  document.getElementById('ilLayerControls')?.classList.remove('il-active');
+  document.getElementById('ilTextControls')?.classList.remove('il-active');
 }
 
 // Multiple pages: each page is its own .lookbook-canvas element inside the
@@ -4849,7 +4910,10 @@ function ilMakeItemDraggable(item) {
   function pointerDown(e) {
     // Let a focused text item keep normal text-cursor/selection behaviour
     // instead of hijacking the gesture into a drag.
-    if (item.classList.contains('text-item') && document.activeElement === item) return;
+    if (item.classList.contains('text-item')) {
+      const textEl = item.querySelector('.text-item-content');
+      if (textEl && document.activeElement === textEl) return;
+    }
     if (e.target.classList.contains('item-resize-handle') || e.target.classList.contains('item-delete-handle')) return;
 
     e.preventDefault();
@@ -4976,6 +5040,27 @@ function ilCreateImageItem({ src, x, y, w, h, hasPattern, hueRotate }) {
   return item;
 }
 
+// A plain solid-colour block, dropped from the palette strip — handy for
+// presenting "here's the palette" as its own chips alongside the pattern
+// and mock-up layers, not just for tinting text.
+function ilCreateColorSwatchItem(color) {
+  const item = document.createElement('div');
+  item.className = 'canvas-item';
+  item.style.left = '80px';
+  item.style.top = '80px';
+  item.style.width = '90px';
+  item.style.height = '90px';
+  item.style.zIndex = ++ilZIndexCounter;
+  item.style.background = color;
+  item.dataset.isColorSwatch = 'true';
+  item.dataset.color = color;
+
+  ilActiveCanvas().appendChild(item);
+  ilAttachHandles(item);
+  ilMakeItemDraggable(item);
+  return item;
+}
+
 // Prompt 2: text anywhere. Double-clicking empty canvas spawns a
 // contenteditable box with placeholder text that grabs focus immediately;
 // clicking away leaves it as a normal draggable .canvas-item (dragging is
@@ -4988,42 +5073,61 @@ function ilCreateTextItem(x, y) {
   item.style.width = '220px';
   item.style.height = 'auto';
   item.style.zIndex = ++ilZIndexCounter;
-  item.contentEditable = 'true';
-  item.dataset.placeholder = 'true';
   item.dataset.font = "'Quicksand', sans-serif";
   item.dataset.fontSize = '24';
   item.style.fontFamily = "'Quicksand', sans-serif";
   item.style.fontSize = '24px';
   item.style.color = '#222222';
-  item.textContent = 'Type here...';
 
-  item.addEventListener('focus', () => {
-    if (item.dataset.placeholder === 'true') {
-      item.textContent = '';
-      item.dataset.placeholder = 'false';
+  // The editable text lives in its own child node — never a direct
+  // sibling of the delete/resize handles — so the browser never treats
+  // those buttons as part of the editable content while you type.
+  const textEl = document.createElement('div');
+  textEl.className = 'text-item-content';
+  textEl.contentEditable = 'true';
+  textEl.dataset.placeholder = 'true';
+  textEl.textContent = 'Type here...';
+  item.appendChild(textEl);
+
+  textEl.addEventListener('click', () => ilSelectItem(item));
+
+  textEl.addEventListener('focus', () => {
+    if (textEl.dataset.placeholder === 'true') {
+      textEl.textContent = '';
+      textEl.dataset.placeholder = 'false';
     }
   });
 
-  item.addEventListener('blur', () => {
-    if (!item.textContent.trim()) {
-      item.textContent = 'Type here...';
-      item.dataset.placeholder = 'true';
+  textEl.addEventListener('blur', () => {
+    if (!textEl.textContent.trim()) {
+      textEl.textContent = 'Type here...';
+      textEl.dataset.placeholder = 'true';
     }
   });
 
   item.addEventListener('dblclick', e => {
     e.stopPropagation();
-    item.focus();
+    // The browser's own default for a double-click on text is "select the
+    // word under the cursor", which fires right after this listener and
+    // was clobbering the caret placement below — block it so ours sticks.
+    e.preventDefault();
+    textEl.focus();
+    const reopenRange = document.createRange();
+    reopenRange.selectNodeContents(textEl);
+    reopenRange.collapse(false);
+    const reopenSel = window.getSelection();
+    reopenSel.removeAllRanges();
+    reopenSel.addRange(reopenRange);
   });
 
   ilActiveCanvas().appendChild(item);
   ilAttachHandles(item);
   ilMakeItemDraggable(item);
   ilSelectItem(item);
-  item.focus();
+  textEl.focus();
 
   const range = document.createRange();
-  range.selectNodeContents(item);
+  range.selectNodeContents(textEl);
   const sel = window.getSelection();
   sel.removeAllRanges();
   sel.addRange(range);
@@ -5142,9 +5246,54 @@ function ilRenderPaletteStrip(activeColor) {
   });
 }
 
+// The same extracted palette, but always visible under the pattern strip
+// (not just while a text layer is selected) — clicking a chip here drops
+// a solid-colour swatch onto the canvas as its own layer.
+function ilRenderCanvasPaletteStrip() {
+  const strip = document.getElementById('ilCanvasPaletteStrip');
+  if (!strip) return;
+  strip.innerHTML = '';
+  ilCurrentPalette.forEach(color => {
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    sw.className = 'lookbook-palette-swatch';
+    sw.style.background = color;
+    sw.title = 'add a ' + color + ' swatch to the canvas';
+    sw.addEventListener('click', () => {
+      ilCreateColorSwatchItem(color);
+    });
+    strip.appendChild(sw);
+  });
+}
+
 // Populate page 1 from whatever mock-ups/scenes are currently selected,
 // staggered in a simple grid so nothing starts stacked. Extra pages start
 // blank via the "+ page" tab.
+async function ilAddMockupItemsToActivePage(startY) {
+  const items = getSelectedLookbookItems();
+  const pages = await collectLookbookPages(items);
+
+  const cols = 3;
+  const cellW = 340;
+  const cellH = 260;
+  const marginX = 40;
+
+  pages.forEach((page, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    ilCreateImageItem({
+      src: page.canvas.toDataURL('image/png'),
+      x: marginX + col * (cellW + 20),
+      y: startY + row * (cellH + 20),
+      w: cellW,
+      h: cellH,
+      hasPattern: false
+    });
+  });
+
+  return pages.length;
+}
+
 async function ilPopulateFromSelection() {
   ilViewportEl.innerHTML = '';
   ilPages = [];
@@ -5153,30 +5302,31 @@ async function ilPopulateFromSelection() {
   ilSelectedItem = null;
   ilAddPage();
 
-  const items = getSelectedLookbookItems();
-  const pages = await collectLookbookPages(items);
-
-  const cols = 3;
-  const cellW = 340;
-  const cellH = 260;
-  const marginX = 40;
-  const marginY = 40;
-
-  pages.forEach((page, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    ilCreateImageItem({
-      src: page.canvas.toDataURL('image/png'),
-      x: marginX + col * (cellW + 20),
-      y: marginY + row * (cellH + 20),
-      w: cellW,
-      h: cellH,
-      hasPattern: false
-    });
-  });
+  await ilAddMockupItemsToActivePage(40);
 
   ilDeselectAll();
 }
+
+// Lets a designer go back to the card grid, select one more mock-up, and
+// bring it into the lookbook they were already building — without
+// wiping the layout they'd already put together.
+document.getElementById('ilAddSelectedBtn')?.addEventListener('click', async () => {
+  const items = getSelectedLookbookItems();
+  if (!items.length) {
+    alert('select at least one mock-up or scene first (use the ✓ on any card), then add it here.');
+    return;
+  }
+  const canvasEl = ilActiveCanvas();
+  if (!canvasEl) return;
+
+  let startY = 40;
+  canvasEl.querySelectorAll('.canvas-item').forEach(el => {
+    const top = parseFloat(el.style.top) || 0;
+    startY = Math.max(startY, top + el.offsetHeight + 20);
+  });
+
+  await ilAddMockupItemsToActivePage(startY);
+});
 
 // Same pattern, several colourways: a quick way to pitch one design to a
 // client in a handful of alternate colour schemes without recolouring
@@ -5237,19 +5387,30 @@ function ilRenderPatternStrip() {
   }
 }
 
+// Only the very first open auto-populates from the current selection.
+// Reopening later (say, after going back to select one more mock-up)
+// leaves whatever's already on the canvas alone — use "+ add selected
+// mock-ups" inside the editor to bring new picks in without losing work.
 async function ilOpenEditor() {
-  const items = getSelectedLookbookItems();
-  if (!items.length) {
-    alert('select at least one mock-up or scene first (use the ✓ on any card), then try the interactive lookbook again.');
-    return;
+  if (!ilPages.length) {
+    const items = getSelectedLookbookItems();
+    if (!items.length) {
+      alert('select at least one mock-up or scene first (use the ✓ on any card), then try the interactive lookbook again.');
+      return;
+    }
   }
+
   previewOverlay?.classList.add('hidden');
   lookbookOverlay?.classList.add('hidden');
   document.getElementById('interactiveLookbookOverlay')?.classList.remove('hidden');
   ilActiveColorwaySrc = '';
   ilRenderPatternStrip();
   await ilBuildPaletteFromCollection();
-  await ilPopulateFromSelection();
+  ilRenderCanvasPaletteStrip();
+
+  if (!ilPages.length) {
+    await ilPopulateFromSelection();
+  }
 }
 
 document.getElementById('openInteractiveLookbookBtn')?.addEventListener('click', ilOpenEditor);
@@ -5336,13 +5497,17 @@ async function ilRasterizeCanvas(canvasEl) {
     ctx.translate(-iw / 2, -ih / 2);
 
     if (item.classList.contains('text-item')) {
-      if (item.dataset.placeholder !== 'true') {
+      const textEl = item.querySelector('.text-item-content');
+      if (textEl && textEl.dataset.placeholder !== 'true') {
         const style = getComputedStyle(item);
         ctx.fillStyle = style.color;
         ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
         ctx.textBaseline = 'top';
-        ilWrapText(ctx, item.innerText, 10, 8, iw - 20, parseFloat(style.fontSize) * 1.3);
+        ilWrapText(ctx, textEl.innerText, 10, 8, iw - 20, parseFloat(style.fontSize) * 1.3);
       }
+    } else if (item.dataset.isColorSwatch === 'true') {
+      ctx.fillStyle = item.dataset.color;
+      ctx.fillRect(0, 0, iw, ih);
     } else {
       const match = /url\("?(.*?)"?\)/.exec(item.style.backgroundImage);
       if (match) {
