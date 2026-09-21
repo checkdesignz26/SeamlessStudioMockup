@@ -1926,11 +1926,6 @@ input[type=text] {
       <div class="lookbook-colorway-strip" id="ilColorwayStrip"></div>
     </div>
 
-    <div class="lookbook-editor-patterns" id="ilCanvasPaletteRow">
-      <span style="font-size:12px; color:var(--muted);">add a colour swatch:</span>
-      <div class="lookbook-palette-strip" id="ilCanvasPaletteStrip"></div>
-    </div>
-
     <div class="lookbook-editor-controls-wrapper" id="ilControlsWrapper">
       <div id="ilLayerControls" class="lookbook-editor-layer-controls">
         <label>pattern scale <span id="ilScaleValue">100%</span></label>
@@ -5040,27 +5035,6 @@ function ilCreateImageItem({ src, x, y, w, h, hasPattern, hueRotate }) {
   return item;
 }
 
-// A plain solid-colour block, dropped from the palette strip — handy for
-// presenting "here's the palette" as its own chips alongside the pattern
-// and mock-up layers, not just for tinting text.
-function ilCreateColorSwatchItem(color) {
-  const item = document.createElement('div');
-  item.className = 'canvas-item';
-  item.style.left = '80px';
-  item.style.top = '80px';
-  item.style.width = '90px';
-  item.style.height = '90px';
-  item.style.zIndex = ++ilZIndexCounter;
-  item.style.background = color;
-  item.dataset.isColorSwatch = 'true';
-  item.dataset.color = color;
-
-  ilActiveCanvas().appendChild(item);
-  ilAttachHandles(item);
-  ilMakeItemDraggable(item);
-  return item;
-}
-
 // Prompt 2: text anywhere. Double-clicking empty canvas spawns a
 // contenteditable box with placeholder text that grabs focus immediately;
 // clicking away leaves it as a normal draggable .canvas-item (dragging is
@@ -5246,26 +5220,6 @@ function ilRenderPaletteStrip(activeColor) {
   });
 }
 
-// The same extracted palette, but always visible under the pattern strip
-// (not just while a text layer is selected) — clicking a chip here drops
-// a solid-colour swatch onto the canvas as its own layer.
-function ilRenderCanvasPaletteStrip() {
-  const strip = document.getElementById('ilCanvasPaletteStrip');
-  if (!strip) return;
-  strip.innerHTML = '';
-  ilCurrentPalette.forEach(color => {
-    const sw = document.createElement('button');
-    sw.type = 'button';
-    sw.className = 'lookbook-palette-swatch';
-    sw.style.background = color;
-    sw.title = 'add a ' + color + ' swatch to the canvas';
-    sw.addEventListener('click', () => {
-      ilCreateColorSwatchItem(color);
-    });
-    strip.appendChild(sw);
-  });
-}
-
 // Populate page 1 from whatever mock-ups/scenes are currently selected,
 // staggered in a simple grid so nothing starts stacked. Extra pages start
 // blank via the "+ page" tab.
@@ -5406,7 +5360,6 @@ async function ilOpenEditor() {
   ilActiveColorwaySrc = '';
   ilRenderPatternStrip();
   await ilBuildPaletteFromCollection();
-  ilRenderCanvasPaletteStrip();
 
   if (!ilPages.length) {
     await ilPopulateFromSelection();
@@ -5505,9 +5458,6 @@ async function ilRasterizeCanvas(canvasEl) {
         ctx.textBaseline = 'top';
         ilWrapText(ctx, textEl.innerText, 10, 8, iw - 20, parseFloat(style.fontSize) * 1.3);
       }
-    } else if (item.dataset.isColorSwatch === 'true') {
-      ctx.fillStyle = item.dataset.color;
-      ctx.fillRect(0, 0, iw, ih);
     } else {
       const match = /url\("?(.*?)"?\)/.exec(item.style.backgroundImage);
       if (match) {
