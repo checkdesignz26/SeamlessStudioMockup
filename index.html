@@ -1317,6 +1317,29 @@ input[type=range] {
   display: block;
 }
 
+/* A palette item is a group of colour dots that move/resize together as
+   one canvas-item — not fixed in place, not tied to the pattern it was
+   pulled from. Dots are sized as a percentage of the item's own height and
+   spaced with space-evenly, so resizing the group's box (the same resize
+   handle every other item uses) scales and re-spaces them for free, no
+   extra JS needed to keep the live view in sync. */
+.canvas-item.palette-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  background: rgba(255,255,255,0.92);
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.22);
+}
+
+.palette-item .palette-dot {
+  height: 60%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.9), 0 2px 6px rgba(0,0,0,0.25);
+  flex: 0 0 auto;
+}
+
 .branding-logo-row {
   display: flex;
   flex-direction: column;
@@ -2008,6 +2031,7 @@ input[type=text] {
         <input type="range" id="ilScaleSlider" min="20" max="400" value="100">
         <label>rotate <span id="ilRotateValue">0°</span></label>
         <input type="range" id="ilRotateSlider" min="0" max="360" value="0">
+        <button type="button" class="secondary" id="ilAddPaletteBtn">+ add colour palette</button>
       </div>
 
       <div id="ilTextControls" class="lookbook-editor-layer-controls">
@@ -5185,6 +5209,94 @@ function ilCreateImageItem({ src, x, y, w, h, hasPattern, hueRotate, scale, rota
   return item;
 }
 
+// Samples a pattern image down to a small canvas and picks its most
+// frequent colours, merging near-duplicates (a busy print can otherwise
+// yield five near-identical blues) so the palette actually spans the
+// design's range.
+function ilExtractPaletteColors(img, count) {
+  count = count || 5;
+  const SIZE = 48;
+  const c = document.createElement('canvas');
+  c.width = SIZE;
+  c.height = SIZE;
+  const ctx = c.getContext('2d');
+  ilDrawCoverImage(ctx, img, 0, 0, SIZE, SIZE);
+  const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
+
+  const STEP = 32;
+  const buckets = new Map();
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 200) continue;
+    const r = Math.round(data[i] / STEP) * STEP;
+    const g = Math.round(data[i + 1] / STEP) * STEP;
+    const b = Math.round(data[i + 2] / STEP) * STEP;
+    const key = r + ',' + g + ',' + b;
+    buckets.set(key, (buckets.get(key) || 0) + 1);
+  }
+
+  const sorted = [...buckets.entries()].sort((a, b) => b[1] - a[1]);
+  const MIN_DISTANCE = 40;
+  const picked = [];
+  for (const [key] of sorted) {
+    const [r, g, b] = key.split(',').map(Number);
+    const tooClose = picked.some(p => Math.hypot(p.r - r, p.g - g, p.b - b) < MIN_DISTANCE);
+    if (!tooClose) picked.push({ r, g, b });
+    if (picked.length >= count) break;
+  }
+  while (picked.length < count) {
+    const shade = 70 + picked.length * 40;
+    picked.push({ r: shade, g: shade, b: shade });
+  }
+
+  return picked.map(({ r, g, b }) => '#' + [r, g, b].map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join(''));
+}
+
+// A group of colour swatches that move and resize as one item — not tied
+// to the pattern it was pulled from, so it can be dragged anywhere on the
+// page to show off a design's palette at a glance. Dots are sized purely
+// by CSS (see .palette-item), so resizing the box is all that's needed to
+// make them bigger — no per-dot layout logic here.
+function ilCreatePaletteItem({ colors, x, y, w, h, zIndex }) {
+  const item = document.createElement('div');
+  item.className = 'canvas-item palette-item';
+  item.style.left = x + 'px';
+  item.style.top = y + 'px';
+  item.style.width = (w || Math.max(180, colors.length * 56)) + 'px';
+  item.style.height = (h || 64) + 'px';
+  item.style.zIndex = zIndex || ++ilZIndexCounter;
+  item.dataset.colors = JSON.stringify(colors);
+
+  colors.forEach(color => {
+    const dot = document.createElement('div');
+    dot.className = 'palette-dot';
+    dot.style.background = color;
+    item.appendChild(dot);
+  });
+
+  ilActiveCanvas().appendChild(item);
+  ilAttachHandles(item);
+  ilMakeItemDraggable(item);
+  return item;
+}
+
+document.getElementById('ilAddPaletteBtn')?.addEventListener('click', async () => {
+  if (!ilSelectedItem || ilSelectedItem.dataset.hasPattern !== 'true') return;
+  const match = /url\("?(.*?)"?\)/.exec(ilSelectedItem.style.backgroundImage);
+  if (!match) return;
+  try {
+    const img = await ilLoadImage(match[1]);
+    const colors = ilExtractPaletteColors(img, 5);
+    const baseLeft = parseFloat(ilSelectedItem.style.left) || 0;
+    const baseTop = parseFloat(ilSelectedItem.style.top) || 0;
+    const baseHeight = ilSelectedItem.offsetHeight || 200;
+    ilCreatePaletteItem({ colors, x: baseLeft, y: baseTop + baseHeight + 20 });
+    await ilRenderSinglePageThumbnail(ilActivePageIndex);
+  } catch (err) {
+    console.error('colour palette extraction failed', err);
+    showToastMessage('could not read that pattern\'s colours — try a different one.');
+  }
+});
+
 // Prompt 2: text anywhere. Double-clicking empty canvas spawns a
 // contenteditable box with placeholder text that grabs focus immediately;
 // clicking away leaves it as a normal draggable .canvas-item (dragging is
@@ -5657,6 +5769,37 @@ async function ilRasterizeCanvas(canvasEl, scaleFactor) {
         ctx.textBaseline = 'top';
         ilWrapText(ctx, textEl.innerText, 10, 8, iw - 20, parseFloat(style.fontSize) * 1.3);
       }
+    } else if (item.classList.contains('palette-item')) {
+      // Mirrors the .palette-item CSS exactly: dots at 60% of the box
+      // height, laid out with equal gaps at both ends and in between
+      // (the canvas equivalent of justify-content: space-evenly), so the
+      // export matches the live drag/resizeable group pixel for pixel.
+      let colors = [];
+      try { colors = JSON.parse(item.dataset.colors || '[]'); } catch (err) { colors = []; }
+      const n = colors.length;
+      if (n) {
+        const radius = 6;
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.beginPath();
+        ctx.moveTo(radius, 0);
+        ctx.arcTo(iw, 0, iw, ih, radius);
+        ctx.arcTo(iw, ih, 0, ih, radius);
+        ctx.arcTo(0, ih, 0, 0, radius);
+        ctx.arcTo(0, 0, iw, 0, radius);
+        ctx.closePath();
+        ctx.fill();
+
+        const dotSize = ih * 0.6;
+        const gap = (iw - n * dotSize) / (n + 1);
+        colors.forEach((color, i) => {
+          const cx = gap * (i + 1) + dotSize * i + dotSize / 2;
+          const cy = ih / 2;
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(cx, cy, dotSize / 2, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
     } else {
       const match = /url\("?(.*?)"?\)/.exec(item.style.backgroundImage);
       if (match) {
@@ -5990,6 +6133,12 @@ function ilSerializeLookbookItem(item) {
     });
   }
 
+  if (item.classList.contains('palette-item')) {
+    let colors = [];
+    try { colors = JSON.parse(item.dataset.colors || '[]'); } catch (err) { colors = []; }
+    return Object.assign(base, { type: 'palette', colors });
+  }
+
   const match = /url\("?(.*?)"?\)/.exec(item.style.backgroundImage);
   return Object.assign(base, {
     type: 'image',
@@ -6062,6 +6211,14 @@ function ilRestoreLookbookItem(data) {
       color: data.color,
       width: data.width,
       height: data.height,
+      zIndex: data.zIndex
+    });
+  } else if (data.type === 'palette') {
+    ilCreatePaletteItem({
+      colors: data.colors || [],
+      x, y,
+      w: parseFloat(data.width) || undefined,
+      h: parseFloat(data.height) || undefined,
       zIndex: data.zIndex
     });
   } else if (data.src) {
