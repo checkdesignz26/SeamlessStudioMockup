@@ -3440,6 +3440,18 @@ function ensureCollectionEntryImageLoaded(entry) {
 }
 
 async function addQuickCollectionPattern(src) {
+  // With no default pattern set yet, a pattern added here would just sit
+  // in the collection with nothing actually applied to any mock-up (a
+  // collection pattern only shows once assigned to a product's swatch) —
+  // exactly the "I uploaded a pattern but the mock-ups stayed blank"
+  // confusion. The first pattern always becomes the default, matching the
+  // app's own "one pattern, all your mock-ups" promise; a second or later
+  // addition is the deliberate "assign a different one per card" case.
+  if (!quickPatternSrc) {
+    await setMainQuickPattern(src);
+    return;
+  }
+
   quickCollectionIdCounter++;
   const entry = { id: quickCollectionIdCounter, src, thumbSrc: src, img: null, name: 'pattern ' + (quickPatternCollection.length + 2) };
   quickPatternCollection.push(entry);
@@ -4280,6 +4292,33 @@ function downloadCanvasPNG(canvas, filename) {
   link.remove();
 }
 
+// Shared by the primary "upload your pattern" input and by adding a
+// pattern to the collection when no default exists yet (see
+// addQuickCollectionPattern) — either way, becoming the default pattern
+// means every mock-up card re-renders with it automatically.
+function setMainQuickPattern(src, name) {
+  return new Promise(resolve => {
+    quickPatternSrc = src;
+    quickPatternImage = new Image();
+    quickPatternImage.onload = () => {
+      buildPatternWorkingCopy(quickPatternImage);
+      const thumb = document.getElementById('quickThumb');
+      const fileNameEl = document.getElementById('quickFileName');
+      const strip = document.getElementById('quickUploadStrip');
+      const card = document.getElementById('quickUploadCard');
+      if (thumb) thumb.src = src;
+      if (fileNameEl) fileNameEl.textContent = name || 'pattern uploaded';
+      if (strip) strip.classList.remove('hidden');
+      if (card) card.classList.add('hidden');
+      renderAllPatternSwatchRows();
+      renderQuickCardsSequentially(ALL_QUICK_PRODUCTS);
+      resolve();
+    };
+    quickPatternImage.onerror = resolve;
+    quickPatternImage.src = src;
+  });
+}
+
 function setupUpload(inputId, cardId, stripId, thumbId, fileNameId) {
   const input = document.getElementById(inputId);
   const card = document.getElementById(cardId);
@@ -4301,14 +4340,7 @@ function setupUpload(inputId, cardId, stripId, thumbId, fileNameId) {
       if (card && strip) card.classList.add('hidden');
 
       if (inputId === 'quickUploadInput') {
-        quickPatternSrc = ev.target.result;
-        quickPatternImage = new Image();
-        quickPatternImage.onload = () => {
-          buildPatternWorkingCopy(quickPatternImage);
-          renderAllPatternSwatchRows();
-          renderQuickCardsSequentially(ALL_QUICK_PRODUCTS);
-        };
-        quickPatternImage.src = ev.target.result;
+        setMainQuickPattern(ev.target.result, file.name);
       }
 
       if (inputId === 'creativeUploadInput' || inputId === 'addPatternInput') {
