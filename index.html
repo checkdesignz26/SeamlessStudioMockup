@@ -1137,8 +1137,16 @@ input[type=range] {
   align-items: center;
   gap: 16px;
   padding: 10px 20px;
-  flex-wrap: wrap;
-  overflow: hidden;
+  /* Never wrap: on a narrower screen (an iPad, say) a wrapped second line
+     would land below this box's fixed height and, since that height can
+     never change (see the wrapper's own comment), be clipped out of view
+     with no scrollbar or other sign it existed — which is exactly what
+     made the colour swatches seem to vanish. Scrolling sideways keeps
+     every control reachable no matter how much a text item's panel grows. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -1148,6 +1156,13 @@ input[type=range] {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
+}
+
+/* Without this, flex's default shrink-to-fit would squeeze every control
+   (sliders, swatches, the font dropdown) smaller instead of actually
+   overflowing — which is what makes the scrollbar above appear at all. */
+.lookbook-editor-layer-controls > * {
+  flex-shrink: 0;
 }
 
 .lookbook-editor-layer-controls label {
