@@ -5915,6 +5915,57 @@ document.getElementById('closePreviewBtn').addEventListener('click', () => {
 const MSTUDIO_FORMAT = 'mstudio';
 const MSTUDIO_VERSION = 1;
 const MSTUDIO_LOCALSTORAGE_KEY = 'mockupStudioQuickSave';
+const MSTUDIO_IDB_NAME = 'mockupStudioDB';
+const MSTUDIO_IDB_STORE = 'projectSaves';
+const MSTUDIO_IDB_KEY = 'quickSave';
+
+/* Quick save/load prefers IndexedDB, since a real project's full-resolution
+   pattern images can easily blow past localStorage's ~5-10MB per-origin quota
+   (that's the "could not save" error). IndexedDB's practical quota is far
+   larger and it stores the object directly via structured clone, no
+   JSON.stringify needed. localStorage is kept only as a read fallback so a
+   save made before this change can still be quick-loaded once. */
+function openMstudioDB() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) { reject(new Error('IndexedDB unavailable')); return; }
+    const req = indexedDB.open(MSTUDIO_IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(MSTUDIO_IDB_STORE)) {
+        req.result.createObjectStore(MSTUDIO_IDB_STORE);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('could not open IndexedDB'));
+  });
+}
+
+async function idbSaveProject(data) {
+  const db = await openMstudioDB();
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(MSTUDIO_IDB_STORE, 'readwrite');
+      tx.objectStore(MSTUDIO_IDB_STORE).put(data, MSTUDIO_IDB_KEY);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error || new Error('IndexedDB write failed'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function idbLoadProject() {
+  const db = await openMstudioDB();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(MSTUDIO_IDB_STORE, 'readonly');
+      const req = tx.objectStore(MSTUDIO_IDB_STORE).get(MSTUDIO_IDB_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error || new Error('IndexedDB read failed'));
+    });
+  } finally {
+    db.close();
+  }
+}
 
 function ilSerializeLookbookItem(item) {
   const base = {
@@ -6183,25 +6234,36 @@ function setProjectStatus(message) {
   projectStatusTimer = setTimeout(() => { pill.textContent = ''; }, 4000);
 }
 
-document.getElementById('quickSaveBtn')?.addEventListener('click', () => {
+document.getElementById('quickSaveBtn')?.addEventListener('click', async () => {
+  const data = serializeProject();
   try {
-    const data = serializeProject();
-    localStorage.setItem(MSTUDIO_LOCALSTORAGE_KEY, JSON.stringify(data));
+    await idbSaveProject(data);
+    localStorage.removeItem(MSTUDIO_LOCALSTORAGE_KEY);
     setProjectStatus('saved ' + new Date().toLocaleTimeString());
   } catch (err) {
     console.error(err);
-    showToastMessage('could not save — the project might be too large for browser storage. Try "download project" instead.');
+    try {
+      localStorage.setItem(MSTUDIO_LOCALSTORAGE_KEY, JSON.stringify(data));
+      setProjectStatus('saved ' + new Date().toLocaleTimeString());
+    } catch (err2) {
+      console.error(err2);
+      showToastMessage('could not save — the project might be too large for browser storage. Try "download project" instead.');
+    }
   }
 });
 
 document.getElementById('quickLoadBtn')?.addEventListener('click', async () => {
-  const raw = localStorage.getItem(MSTUDIO_LOCALSTORAGE_KEY);
-  if (!raw) {
-    alert('no quick save found yet — use "quick save" first.');
-    return;
-  }
   try {
-    await restoreProject(JSON.parse(raw));
+    let data = await idbLoadProject();
+    if (!data) {
+      const raw = localStorage.getItem(MSTUDIO_LOCALSTORAGE_KEY);
+      data = raw ? JSON.parse(raw) : null;
+    }
+    if (!data) {
+      alert('no quick save found yet — use "quick save" first.');
+      return;
+    }
+    await restoreProject(data);
     setProjectStatus('loaded');
   } catch (err) {
     console.error(err);
