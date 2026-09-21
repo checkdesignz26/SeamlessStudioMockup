@@ -1026,6 +1026,27 @@ input[type=range] {
   flex-shrink: 0;
 }
 
+.lookbook-row-label {
+  font-size: 12px;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.lookbook-row-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+  flex: 0 0 auto;
+  margin: 0 4px;
+}
+
+.lookbook-pattern-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .lookbook-editor-patterns .lookbook-pattern-swatch {
   width: 30px;
   height: 30px;
@@ -1993,12 +2014,11 @@ input[type=text] {
     </div>
 
 
-    <div class="lookbook-editor-patterns" id="ilPatternStrip">
-      <span style="font-size:12px; color:var(--muted);">add a pattern swatch:</span>
-    </div>
-
-    <div class="lookbook-editor-patterns" id="ilColorwayStripRow">
-      <span style="font-size:12px; color:var(--muted);">colourways of that pattern:</span>
+    <div class="lookbook-editor-patterns">
+      <span class="lookbook-row-label">add a pattern swatch:</span>
+      <div class="lookbook-pattern-strip" id="ilPatternStrip"></div>
+      <span class="lookbook-row-divider"></span>
+      <span class="lookbook-row-label">colourways (click to drop one on the canvas):</span>
       <div class="lookbook-colorway-strip" id="ilColorwayStrip"></div>
     </div>
 
@@ -5516,7 +5536,7 @@ function ilRenderPatternStrip() {
     const swatch = document.createElement('div');
     swatch.className = 'lookbook-pattern-swatch' + (src === ilActiveColorwaySrc ? ' active' : '');
     swatch.style.backgroundImage = `url("${src}")`;
-    swatch.title = 'click to add, or to see its colourways below';
+    swatch.title = 'click to add, or to see its colourways alongside';
     swatch.addEventListener('click', () => {
       ilCreateImageItem({ src, x: 80, y: 80, w: 220, h: 220, hasPattern: true });
       strip.querySelectorAll('.lookbook-pattern-swatch').forEach(el => el.classList.remove('active'));
