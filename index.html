@@ -1028,11 +1028,40 @@ input[type=range] {
   flex: 0 0 auto;
 }
 
+.lookbook-editor-patterns .lookbook-pattern-swatch.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px #fff, 0 0 0 3px var(--accent);
+}
+
 .lookbook-page-tabs {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.lookbook-colorway-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.lookbook-colorway-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid rgba(0,0,0,0.4);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.55);
+  background-size: cover;
+  background-position: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.lookbook-colorway-swatch.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px #fff, 0 0 0 3px var(--accent);
 }
 
 .il-page-tab {
@@ -1847,6 +1876,11 @@ input[type=text] {
 
     <div class="lookbook-editor-patterns" id="ilPatternStrip">
       <span style="font-size:12px; color:var(--muted);">add a pattern swatch:</span>
+    </div>
+
+    <div class="lookbook-editor-patterns" id="ilColorwayStripRow">
+      <span style="font-size:12px; color:var(--muted);">colourways of that pattern:</span>
+      <div class="lookbook-colorway-strip" id="ilColorwayStrip"></div>
     </div>
 
     <div id="ilLayerControls" class="lookbook-editor-layer-controls hidden">
@@ -4913,7 +4947,7 @@ function ilAttachHandles(item) {
   ilMakeItemResizable(item, resize);
 }
 
-function ilCreateImageItem({ src, x, y, w, h, hasPattern }) {
+function ilCreateImageItem({ src, x, y, w, h, hasPattern, hueRotate }) {
   const item = document.createElement('div');
   item.className = 'canvas-item';
   item.style.left = x + 'px';
@@ -4929,6 +4963,11 @@ function ilCreateImageItem({ src, x, y, w, h, hasPattern }) {
     item.dataset.rotate = '0';
     item.style.backgroundRepeat = 'repeat';
     item.style.backgroundSize = '100%';
+  }
+
+  if (hueRotate) {
+    item.dataset.hueRotate = hueRotate;
+    item.style.filter = `hue-rotate(${hueRotate}deg)`;
   }
 
   ilActiveCanvas().appendChild(item);
@@ -5139,6 +5178,34 @@ async function ilPopulateFromSelection() {
   ilDeselectAll();
 }
 
+// Same pattern, several colourways: a quick way to pitch one design to a
+// client in a handful of alternate colour schemes without recolouring
+// anything by hand. Hue-rotation works on any pattern (no need to know
+// its actual colours), and the same rotation is mirrored at export time
+// so the PNG/PDF matches what's on screen.
+const IL_COLORWAY_HUE_STEPS = [0, 72, 144, 216, 288];
+let ilActiveColorwaySrc = '';
+
+function ilRenderColorwayStrip(src) {
+  ilActiveColorwaySrc = src || '';
+  const strip = document.getElementById('ilColorwayStrip');
+  if (!strip) return;
+  strip.innerHTML = '';
+  if (!src) return;
+
+  IL_COLORWAY_HUE_STEPS.forEach(deg => {
+    const swatch = document.createElement('div');
+    swatch.className = 'lookbook-colorway-swatch';
+    swatch.style.backgroundImage = `url("${src}")`;
+    swatch.style.filter = deg ? `hue-rotate(${deg}deg)` : 'none';
+    swatch.title = deg ? `add this colourway (hue +${deg}°)` : 'add the original colourway';
+    swatch.addEventListener('click', () => {
+      ilCreateImageItem({ src, x: 80, y: 80, w: 180, h: 180, hasPattern: true, hueRotate: deg });
+    });
+    strip.appendChild(swatch);
+  });
+}
+
 function ilRenderPatternStrip() {
   const strip = document.getElementById('ilPatternStrip');
   if (!strip) return;
@@ -5150,14 +5217,24 @@ function ilRenderPatternStrip() {
 
   patterns.forEach(src => {
     const swatch = document.createElement('div');
-    swatch.className = 'lookbook-pattern-swatch';
+    swatch.className = 'lookbook-pattern-swatch' + (src === ilActiveColorwaySrc ? ' active' : '');
     swatch.style.backgroundImage = `url("${src}")`;
-    swatch.title = 'add this pattern as a swatch layer';
+    swatch.title = 'click to add, or to see its colourways below';
     swatch.addEventListener('click', () => {
       ilCreateImageItem({ src, x: 80, y: 80, w: 220, h: 220, hasPattern: true });
+      strip.querySelectorAll('.lookbook-pattern-swatch').forEach(el => el.classList.remove('active'));
+      swatch.classList.add('active');
+      ilRenderColorwayStrip(src);
     });
     strip.appendChild(swatch);
   });
+
+  if (!ilActiveColorwaySrc && patterns.length) {
+    strip.querySelector('.lookbook-pattern-swatch')?.classList.add('active');
+    ilRenderColorwayStrip(patterns[0]);
+  } else {
+    ilRenderColorwayStrip(ilActiveColorwaySrc);
+  }
 }
 
 async function ilOpenEditor() {
@@ -5169,6 +5246,7 @@ async function ilOpenEditor() {
   previewOverlay?.classList.add('hidden');
   lookbookOverlay?.classList.add('hidden');
   document.getElementById('interactiveLookbookOverlay')?.classList.remove('hidden');
+  ilActiveColorwaySrc = '';
   ilRenderPatternStrip();
   await ilBuildPaletteFromCollection();
   await ilPopulateFromSelection();
@@ -5271,7 +5349,10 @@ async function ilRasterizeCanvas(canvasEl) {
         try {
           const img = await ilLoadImage(match[1]);
           if (item.dataset.hasPattern === 'true') {
+            const hue = parseFloat(item.dataset.hueRotate || 0);
+            if (hue) ctx.filter = `hue-rotate(${hue}deg)`;
             ilDrawTiledPattern(ctx, img, iw, ih, parseFloat(item.dataset.scale || 100));
+            ctx.filter = 'none';
           } else {
             ilDrawCoverImage(ctx, img, 0, 0, iw, ih);
           }
