@@ -5592,12 +5592,24 @@ function ilDrawCoverImage(ctx, img, x, y, w, h) {
   ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 }
 
+// Mirrors the CSS the live canvas item actually uses (background-size set
+// to the scale percentage), which sizes the tile as a percentage of the
+// ITEM'S OWN box width, height following automatically to keep the
+// image's aspect ratio.
+// Sizing the tile off the source image's raw natural pixel dimensions
+// instead (as this used to) tiles at a completely different density than
+// what's on screen, since an uploaded pattern's natural size has no
+// relation to the small box it's previewed in — that's what made an
+// export/thumbnail look like a random crop of the artwork instead of the
+// repeating swatch shown live.
 function ilDrawTiledPattern(ctx, img, w, h, scalePercent) {
   const scale = Math.max(0.05, scalePercent / 100);
+  const tileW = Math.max(4, Math.round(w * scale));
+  const tileH = Math.max(4, Math.round(tileW * (img.naturalHeight / img.naturalWidth || 1)));
   const tileCanvas = document.createElement('canvas');
-  tileCanvas.width = Math.max(4, Math.round(img.naturalWidth * scale));
-  tileCanvas.height = Math.max(4, Math.round(img.naturalHeight * scale));
-  tileCanvas.getContext('2d').drawImage(img, 0, 0, tileCanvas.width, tileCanvas.height);
+  tileCanvas.width = tileW;
+  tileCanvas.height = tileH;
+  tileCanvas.getContext('2d').drawImage(img, 0, 0, tileW, tileH);
   ctx.fillStyle = ctx.createPattern(tileCanvas, 'repeat');
   ctx.fillRect(0, 0, w, h);
 }
