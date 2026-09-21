@@ -2457,6 +2457,7 @@ function createBrandingMarker(label, x, y, onMove, sizeConfig) {
       marker.removeEventListener('pointerup', onPointerUp);
       refreshCurrentPreviewRender();
       reRenderVisibleQuickCards();
+      scheduleAutosave();
     };
 
     marker.addEventListener('pointermove', onPointerMove);
@@ -2495,6 +2496,7 @@ function createBrandingMarker(label, x, y, onMove, sizeConfig) {
         handle.removeEventListener('pointerup', onHandleUp);
         refreshCurrentPreviewRender();
         reRenderVisibleQuickCards();
+        scheduleAutosave();
       };
 
       handle.addEventListener('pointermove', onHandleMove);
@@ -3393,18 +3395,64 @@ function getEffectivePatternForProduct(product) {
 let quickPatternCollection = [];
 let quickCollectionIdCounter = 0;
 
-function addQuickCollectionPattern(src) {
+// A full-resolution seamless pattern upload (often several thousand
+// pixels square) decodes to tens of MB as a bitmap. Every small UI preview
+// — a collection thumbnail, a per-product swatch button — used to point
+// its background-image straight at that full-res source, so the browser
+// kept a full decoded copy alive for each one; adding a handful of large
+// patterns at once was enough to crash the tab on an iPad. This renders a
+// small (160px) preview once and discards the full-res decode used to
+// make it, so only the cheap source string (not a decoded bitmap) sticks
+// around until a pattern is actually assigned to a product.
+function createThumbnailDataUrl(src, maxSize) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+// The full-resolution Image a pattern needs for actual mockup rendering is
+// only decoded the first time it's actually picked for a product (see the
+// swatch click handler below), not the moment it's added to the
+// collection — so simply adding many patterns "just to have them handy"
+// never pays the full decode cost until one is genuinely used.
+function ensureCollectionEntryImageLoaded(entry) {
+  if (entry.img) return Promise.resolve(entry.img);
+  if (entry.loadingPromise) return entry.loadingPromise;
+  entry.loadingPromise = new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => { entry.img = img; resolve(img); };
+    img.onerror = reject;
+    img.src = entry.src;
+  });
+  return entry.loadingPromise;
+}
+
+async function addQuickCollectionPattern(src) {
   quickCollectionIdCounter++;
-  const entry = { id: quickCollectionIdCounter, src, img: null, name: 'pattern ' + (quickPatternCollection.length + 2) };
+  const entry = { id: quickCollectionIdCounter, src, thumbSrc: src, img: null, name: 'pattern ' + (quickPatternCollection.length + 2) };
   quickPatternCollection.push(entry);
   renderCollectionThumbs();
+  renderAllPatternSwatchRows();
 
-  const img = new Image();
-  img.onload = () => {
-    entry.img = img;
-    renderAllPatternSwatchRows();
-  };
-  img.src = src;
+  try {
+    entry.thumbSrc = await createThumbnailDataUrl(src, 160);
+  } catch (err) {
+    console.error('pattern thumbnail generation failed, using full-res preview', err);
+  }
+  renderCollectionThumbs();
+  renderAllPatternSwatchRows();
 }
 
 function renderCollectionThumbs() {
@@ -3414,7 +3462,7 @@ function renderCollectionThumbs() {
   quickPatternCollection.forEach(entry => {
     const thumb = document.createElement('div');
     thumb.className = 'collection-thumb';
-    thumb.style.backgroundImage = `url(${entry.src})`;
+    thumb.style.backgroundImage = `url(${entry.thumbSrc || entry.src})`;
     thumb.title = entry.name;
 
     const removeBtn = document.createElement('button');
@@ -3476,12 +3524,12 @@ function renderPatternSwatchRow(product) {
     btn.type = 'button';
     btn.className = 'pattern-swatch' + (overrideImg === entry.img ? ' active' : '');
     btn.title = entry.name;
-    btn.style.backgroundImage = `url(${entry.src})`;
-    btn.addEventListener('click', e => {
+    btn.style.backgroundImage = `url(${entry.thumbSrc || entry.src})`;
+    btn.addEventListener('click', async e => {
       e.stopPropagation();
-      if (!entry.img) return;
+      const img = await ensureCollectionEntryImageLoaded(entry);
       productOverrides[product] = productOverrides[product] || {};
-      productOverrides[product].patternImg = entry.img;
+      productOverrides[product].patternImg = img;
       renderPatternSwatchRow(product);
       renderQuickCard(product);
       if (currentPreviewProduct === product) openProductPreview(product);
@@ -3507,8 +3555,17 @@ document.getElementById('quickAddPatternBtn')?.addEventListener('click', () => {
   document.getElementById('quickAddPatternInput')?.click();
 });
 
+const QUICK_PATTERN_COLLECTION_MAX = 20;
+
 document.getElementById('quickAddPatternInput')?.addEventListener('change', e => {
-  [...e.target.files].forEach(file => {
+  const files = [...e.target.files];
+  const room = Math.max(0, QUICK_PATTERN_COLLECTION_MAX - quickPatternCollection.length);
+  if (files.length > room) {
+    showToastMessage(room > 0
+      ? `only added ${room} of ${files.length} — ${QUICK_PATTERN_COLLECTION_MAX} patterns in the collection is plenty; remove some first if you need more.`
+      : `the collection already has ${QUICK_PATTERN_COLLECTION_MAX} patterns — remove some first if you need to add more.`);
+  }
+  files.slice(0, room).forEach(file => {
     const reader = new FileReader();
     reader.onload = ev => addQuickCollectionPattern(ev.target.result);
     reader.readAsDataURL(file);
@@ -5549,9 +5606,12 @@ document.getElementById('ilFontSizeSlider')?.addEventListener('input', e => {
 let ilCustomTextColors = [];
 
 async function ilBuildPaletteFromCollection() {
+  // A small thumbnail gives the same colours as the full-resolution source
+  // for this purpose, without the transient full decode of several
+  // multi-thousand-pixel patterns at once.
   const sources = [];
   if (quickPatternSrc) sources.push(quickPatternSrc);
-  quickPatternCollection.forEach(entry => sources.push(entry.src));
+  quickPatternCollection.forEach(entry => sources.push(entry.thumbSrc || entry.src));
 
   const extracted = [];
   for (const src of sources.slice(0, 4)) {
@@ -5711,13 +5771,13 @@ function ilRenderPatternStrip() {
   strip.innerHTML = '';
 
   const patterns = [];
-  if (quickPatternSrc) patterns.push(quickPatternSrc);
-  quickPatternCollection.forEach(entry => patterns.push(entry.src));
+  if (quickPatternSrc) patterns.push({ src: quickPatternSrc, thumbSrc: quickPatternSrc });
+  quickPatternCollection.forEach(entry => patterns.push({ src: entry.src, thumbSrc: entry.thumbSrc || entry.src }));
 
-  patterns.forEach(src => {
+  patterns.forEach(({ src, thumbSrc }) => {
     const swatch = document.createElement('div');
     swatch.className = 'lookbook-pattern-swatch';
-    swatch.style.backgroundImage = `url("${src}")`;
+    swatch.style.backgroundImage = `url("${thumbSrc}")`;
     swatch.title = 'click to add this pattern to the canvas';
     swatch.addEventListener('click', () => {
       ilCreateImageItem({ src, x: 80, y: 80, w: 220, h: 220, hasPattern: true });
@@ -6180,6 +6240,7 @@ const MSTUDIO_LOCALSTORAGE_KEY = 'mockupStudioQuickSave';
 const MSTUDIO_IDB_NAME = 'mockupStudioDB';
 const MSTUDIO_IDB_STORE = 'projectSaves';
 const MSTUDIO_IDB_KEY = 'quickSave';
+const MSTUDIO_IDB_AUTOSAVE_KEY = 'autosave';
 
 /* Quick save/load prefers IndexedDB, since a real project's full-resolution
    pattern images can easily blow past localStorage's ~5-10MB per-origin quota
@@ -6201,12 +6262,12 @@ function openMstudioDB() {
   });
 }
 
-async function idbSaveProject(data) {
+async function idbSaveProjectToKey(data, key) {
   const db = await openMstudioDB();
   try {
     await new Promise((resolve, reject) => {
       const tx = db.transaction(MSTUDIO_IDB_STORE, 'readwrite');
-      tx.objectStore(MSTUDIO_IDB_STORE).put(data, MSTUDIO_IDB_KEY);
+      tx.objectStore(MSTUDIO_IDB_STORE).put(data, key);
       tx.oncomplete = resolve;
       tx.onerror = () => reject(tx.error || new Error('IndexedDB write failed'));
     });
@@ -6215,12 +6276,12 @@ async function idbSaveProject(data) {
   }
 }
 
-async function idbLoadProject() {
+async function idbLoadProjectFromKey(key) {
   const db = await openMstudioDB();
   try {
     return await new Promise((resolve, reject) => {
       const tx = db.transaction(MSTUDIO_IDB_STORE, 'readonly');
-      const req = tx.objectStore(MSTUDIO_IDB_STORE).get(MSTUDIO_IDB_KEY);
+      const req = tx.objectStore(MSTUDIO_IDB_STORE).get(key);
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => reject(req.error || new Error('IndexedDB read failed'));
     });
@@ -6228,6 +6289,23 @@ async function idbLoadProject() {
     db.close();
   }
 }
+
+async function idbDeleteKey(key) {
+  const db = await openMstudioDB();
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(MSTUDIO_IDB_STORE, 'readwrite');
+      tx.objectStore(MSTUDIO_IDB_STORE).delete(key);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error || new Error('IndexedDB delete failed'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+function idbSaveProject(data) { return idbSaveProjectToKey(data, MSTUDIO_IDB_KEY); }
+function idbLoadProject() { return idbLoadProjectFromKey(MSTUDIO_IDB_KEY); }
 
 function ilSerializeLookbookItem(item) {
   const base = {
@@ -6509,6 +6587,65 @@ function setProjectStatus(message) {
   clearTimeout(projectStatusTimer);
   projectStatusTimer = setTimeout(() => { pill.textContent = ''; }, 4000);
 }
+
+/* ---------- autosave ----------
+   Quick save/load is deliberate — the user has to remember to click it.
+   Autosave is the safety net for when they don't: a rolling snapshot kept
+   under its own IndexedDB key (never overwriting a deliberate quick save)
+   on a timer, on tab backgrounding, and right after the specific action
+   that's been triggering crashes (dragging a branding badge). On the next
+   load, if a snapshot is sitting there, offer to bring it back. */
+const AUTOSAVE_INTERVAL_MS = 20000;
+const AUTOSAVE_DEBOUNCE_MS = 2000;
+
+let ilAutosaveInFlight = false;
+async function performAutosave(showStatus) {
+  if (ilAutosaveInFlight) return;
+  ilAutosaveInFlight = true;
+  try {
+    await idbSaveProjectToKey(serializeProject(), MSTUDIO_IDB_AUTOSAVE_KEY);
+    if (showStatus) setProjectStatus('autosaved');
+  } catch (err) {
+    console.error('autosave failed', err);
+  } finally {
+    ilAutosaveInFlight = false;
+  }
+}
+
+// The background timer stays silent — flashing a status on every tick would
+// be noise. The debounced version (tied to an actual edit, like releasing a
+// dragged badge) shows a brief "autosaved" so the save feels visible right
+// when it matters, the same way it would after a real crash scare.
+let ilAutosaveDebounceTimer = null;
+function scheduleAutosave() {
+  clearTimeout(ilAutosaveDebounceTimer);
+  ilAutosaveDebounceTimer = setTimeout(() => performAutosave(true), AUTOSAVE_DEBOUNCE_MS);
+}
+
+async function checkForAutosaveRecovery() {
+  try {
+    const data = await idbLoadProjectFromKey(MSTUDIO_IDB_AUTOSAVE_KEY);
+    if (!data) return;
+    const when = data.savedAt ? new Date(data.savedAt).toLocaleString() : 'a previous session';
+    const wantsRestore = confirm(`Mock-up Studio found autosaved work from ${when} (in case of a crash or accidental close). Restore it?`);
+    if (wantsRestore) {
+      await restoreProject(data);
+      setProjectStatus('restored autosave');
+    } else {
+      await idbDeleteKey(MSTUDIO_IDB_AUTOSAVE_KEY);
+    }
+  } catch (err) {
+    console.error('autosave recovery check failed', err);
+  }
+}
+
+(async () => {
+  await checkForAutosaveRecovery();
+  setInterval(() => performAutosave(false), AUTOSAVE_INTERVAL_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') performAutosave(false);
+  });
+})();
 
 document.getElementById('quickSaveBtn')?.addEventListener('click', async () => {
   const data = serializeProject();
