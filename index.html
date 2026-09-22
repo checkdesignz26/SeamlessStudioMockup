@@ -1524,11 +1524,11 @@ input[type=text] {
 
           <div class="panel-divider"></div>
 
-          <h2>branding &amp; badges</h2>
-          <p>upload your shop logo and add digital-download / sale badges — both get stamped right onto these mock-ups, and again on every download.</p>
+          <h2>shop logo</h2>
+          <p>upload your logo as a watermark — it gets stamped right onto these mock-ups, and again on every download.</p>
 
           <div class="control-group">
-            <h3>shop logo</h3>
+            <h3>logo settings</h3>
             <div class="branding-logo-row">
               <img id="brandingLogoPreview" class="branding-logo-preview" alt="logo preview">
               <div style="display:flex; gap:8px; width:100%;">
@@ -1562,13 +1562,16 @@ input[type=text] {
             <p style="color:var(--muted); font-size:12px; margin:10px 0 0;">📍 open any "preview" and drag the logo — grab its corner handle to resize it too.</p>
           </div>
 
-          <div class="control-group">
-            <h3>badges</h3>
-            <p style="color:var(--muted); font-size:12px; margin:0 0 12px;">stack as many badges as you need — a "digital download" notice, a sale ribbon, whatever else. drag each one (and its corner handle) into place from any full preview.</p>
+          <div class="panel-divider"></div>
 
+          <h2>badges</h2>
+          <p>stack ribbons and notices — a "digital download" notice, a sale ribbon, whatever else — and stamp them onto every mock-up and download.</p>
+
+          <div class="control-group">
             <div id="badgeList"></div>
 
             <button class="secondary" id="addBadgeBtn" type="button" style="width:100%; margin-top:6px;">+ add another badge</button>
+            <p style="color:var(--muted); font-size:12px; margin:10px 0 0;">📍 open any "preview" and drag a badge — grab its corner handle to resize it too.</p>
           </div>
         </aside>
 
@@ -1958,6 +1961,15 @@ input[type=text] {
           <label>inside lining colour</label>
           <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">the strap and leg-opening linings are a solid colour in real life — pick whatever coordinates with your pattern.</p>
           <input type="color" id="swimsuitLiningColorInput" value="#ffffff">
+        </div>
+
+        <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+          <label class="branding-check-row">
+            <input type="checkbox" id="brandingCustomToggle">
+            <span>custom logo/badge position for this mock-up</span>
+          </label>
+          <p style="color:var(--muted); font-size:12px; margin:6px 0 0;">off by default — the logo and badges share one placement from the left panel across every mock-up. switch this on to drag them somewhere different just here.</p>
+          <button class="secondary hidden" id="brandingResetToGlobalBtn" type="button" style="width:100%; margin-top:8px;">reset to global position</button>
         </div>
       </div>
 
@@ -2513,16 +2525,34 @@ function refreshBrandingMarkers() {
 
   if (!getActivePreviewCanvas()) return;
 
+  // A product only reads/writes its own override once "custom position for
+  // this mock-up" is on for it — otherwise every marker still drives the
+  // one shared global placement, unchanged from before this existed.
+  const product = currentPreviewProduct || null;
+  const custom = product && productHasCustomBranding(product);
+
   if (brandingState.showLogo && brandingState.logoImage) {
-    brandingMarkerLayer.appendChild(createBrandingMarker('logo', brandingState.logoX, brandingState.logoY, (x, y) => {
-      brandingState.logoX = x;
-      brandingState.logoY = y;
+    const t = getEffectiveLogoTransform(custom ? product : null);
+    brandingMarkerLayer.appendChild(createBrandingMarker('logo', t.x, t.y, (x, y) => {
+      if (custom) {
+        const o = ensureLogoOverride(product);
+        o.x = x;
+        o.y = y;
+      } else {
+        brandingState.logoX = x;
+        brandingState.logoY = y;
+      }
     }, {
-      get: () => brandingState.logoSize,
-      set: v => { brandingState.logoSize = Math.round(v); },
+      get: () => (custom ? ensureLogoOverride(product).size : brandingState.logoSize),
+      set: v => {
+        const rounded = Math.round(v);
+        if (custom) ensureLogoOverride(product).size = rounded;
+        else brandingState.logoSize = rounded;
+      },
       min: 8,
       max: 45,
       onLiveUpdate: v => {
+        if (custom) return;
         const el = document.getElementById('brandingLogoSize');
         if (el) el.value = Math.round(v);
       }
@@ -2534,15 +2564,27 @@ function refreshBrandingMarkers() {
     const label = (badge.name || '').trim()
       || (badge.mode === 'text' ? badge.text.trim().slice(0, 20) : '')
       || ('badge ' + (index + 1));
-    brandingMarkerLayer.appendChild(createBrandingMarker(label, badge.x, badge.y, (x, y) => {
-      badge.x = x;
-      badge.y = y;
+    const t = getEffectiveBadgeTransform(custom ? product : null, badge);
+    brandingMarkerLayer.appendChild(createBrandingMarker(label, t.x, t.y, (x, y) => {
+      if (custom) {
+        const o = ensureBadgeOverride(product, badge);
+        o.x = x;
+        o.y = y;
+      } else {
+        badge.x = x;
+        badge.y = y;
+      }
     }, {
-      get: () => badge.size,
-      set: v => { badge.size = Math.round(v); },
+      get: () => (custom ? ensureBadgeOverride(product, badge).size : badge.size),
+      set: v => {
+        const rounded = Math.round(v);
+        if (custom) ensureBadgeOverride(product, badge).size = rounded;
+        else badge.size = rounded;
+      },
       min: 8,
       max: 45,
       onLiveUpdate: v => {
+        if (custom) return;
         const input = document.querySelector('.badge-editor[data-badge-id="' + badge.id + '"] .badge-size-input');
         if (input) input.value = Math.round(v);
       }
@@ -2568,7 +2610,52 @@ function drawRoundedRectPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function applyBrandingOverlay(sourceCanvas) {
+// Logo/badge position, size and opacity are global by default — one
+// placement shared by every mock-up — but a product can opt into its own
+// independent placement (see the "custom position for this mock-up"
+// toggle in the preview overlay), stored in productOverrides[product].
+// These two helpers are the single place that decides which one wins, so
+// the live markers and the actual render never disagree.
+function getEffectiveLogoTransform(product) {
+  const override = product && productOverrides[product] && productOverrides[product].brandingLogo;
+  if (override) return override;
+  return { x: brandingState.logoX, y: brandingState.logoY, size: brandingState.logoSize, opacity: brandingState.logoOpacity };
+}
+
+function getEffectiveBadgeTransform(product, badge) {
+  const override = product && productOverrides[product] && productOverrides[product].brandingBadges && productOverrides[product].brandingBadges[badge.id];
+  if (override) return override;
+  return { x: badge.x, y: badge.y, size: badge.size, opacity: badge.opacity };
+}
+
+function productHasCustomBranding(product) {
+  if (!product || !productOverrides[product]) return false;
+  const o = productOverrides[product];
+  return !!(o.brandingLogo || (o.brandingBadges && Object.keys(o.brandingBadges).length));
+}
+
+// Creates this product's override entry (seeded from wherever it currently
+// sits) the first time it's actually dragged, rather than requiring every
+// badge to be pre-seeded the moment "custom position" is switched on — a
+// badge added after that switch still needs somewhere to land on drag 1.
+function ensureLogoOverride(product) {
+  productOverrides[product] = productOverrides[product] || {};
+  if (!productOverrides[product].brandingLogo) {
+    productOverrides[product].brandingLogo = { x: brandingState.logoX, y: brandingState.logoY, size: brandingState.logoSize, opacity: brandingState.logoOpacity };
+  }
+  return productOverrides[product].brandingLogo;
+}
+
+function ensureBadgeOverride(product, badge) {
+  productOverrides[product] = productOverrides[product] || {};
+  productOverrides[product].brandingBadges = productOverrides[product].brandingBadges || {};
+  if (!productOverrides[product].brandingBadges[badge.id]) {
+    productOverrides[product].brandingBadges[badge.id] = { x: badge.x, y: badge.y, size: badge.size, opacity: badge.opacity };
+  }
+  return productOverrides[product].brandingBadges[badge.id];
+}
+
+function applyBrandingOverlay(sourceCanvas, product) {
   if (!sourceCanvas || !sourceCanvas.width || !sourceCanvas.height) return sourceCanvas;
 
   const needsLogo = brandingState.showLogo && brandingState.logoImage;
@@ -2593,37 +2680,39 @@ function applyBrandingOverlay(sourceCanvas) {
   }
 
   if (needsLogo) {
+    const logoT = getEffectiveLogoTransform(product);
     const logo = (brandingState.logoRecolor && brandingState.logoRecoloredImage) ? brandingState.logoRecoloredImage : brandingState.logoImage;
-    const targetW = w * (brandingState.logoSize / 100);
+    const targetW = w * (logoT.size / 100);
     const aspect = (logo.naturalHeight || logo.height || 1) / (logo.naturalWidth || logo.width || 1);
     const targetH = targetW * aspect;
-    const cx = w * (brandingState.logoX / 100);
-    const cy = h * (brandingState.logoY / 100);
+    const cx = w * (logoT.x / 100);
+    const cy = h * (logoT.y / 100);
     const pos = clamp(cx - targetW / 2, cy - targetH / 2, targetW, targetH);
 
     ctx.save();
-    ctx.globalAlpha = brandingState.logoOpacity / 100;
+    ctx.globalAlpha = logoT.opacity / 100;
     ctx.drawImage(logo, pos.x, pos.y, targetW, targetH);
     ctx.restore();
   }
 
   activeBadges.forEach(badge => {
-    const cx = w * (badge.x / 100);
-    const cy = h * (badge.y / 100);
+    const badgeT = getEffectiveBadgeTransform(product, badge);
+    const cx = w * (badgeT.x / 100);
+    const cy = h * (badgeT.y / 100);
 
     if (badge.mode === 'image') {
-      const targetW = w * (badge.size / 100);
+      const targetW = w * (badgeT.size / 100);
       const aspect = (badge.image.naturalHeight || badge.image.height || 1) / (badge.image.naturalWidth || badge.image.width || 1);
       const targetH = targetW * aspect;
       const pos = clamp(cx - targetW / 2, cy - targetH / 2, targetW, targetH);
 
       ctx.save();
-      ctx.globalAlpha = badge.opacity / 100;
+      ctx.globalAlpha = badgeT.opacity / 100;
       ctx.drawImage(badge.image, pos.x, pos.y, targetW, targetH);
       ctx.restore();
     } else {
       const text = badge.text.trim().toUpperCase();
-      const fontSize = Math.max(14, Math.round(w * 0.022 * ((badge.size || 22) / 22)));
+      const fontSize = Math.max(14, Math.round(w * 0.022 * ((badgeT.size || 22) / 22)));
       ctx.font = `700 ${fontSize}px Quicksand, sans-serif`;
       const paddingX = fontSize * 0.9;
       const paddingY = fontSize * 0.55;
@@ -2635,7 +2724,7 @@ function applyBrandingOverlay(sourceCanvas) {
       const py = pos.y;
 
       ctx.save();
-      ctx.globalAlpha = badge.opacity / 100;
+      ctx.globalAlpha = badgeT.opacity / 100;
       ctx.fillStyle = 'rgba(15, 18, 28, 0.82)';
       drawRoundedRectPath(ctx, px, py, pillW, pillH, pillH / 2);
       ctx.fill();
@@ -2653,9 +2742,9 @@ function applyBrandingOverlay(sourceCanvas) {
 
 // Bakes the logo/badges directly onto the given canvas (mutates it in place)
 // so mock-up cards and previews show branding live, not just on download.
-function stampBrandingOverlay(canvas) {
+function stampBrandingOverlay(canvas, product) {
   if (!canvas || !canvas.width || !canvas.height) return;
-  const branded = applyBrandingOverlay(canvas);
+  const branded = applyBrandingOverlay(canvas, product);
   if (branded === canvas) return;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -4244,7 +4333,7 @@ async function renderQuickCard(product) {
     await renderProductToCanvas(product, canvas);
     canvas.classList.remove('hidden');
     if (placeholder) placeholder.classList.add('hidden');
-    stampBrandingOverlay(canvas);
+    stampBrandingOverlay(canvas, product);
   } catch (err) {
     console.error(err);
     showToastMessage((err && err.message) ? err.message : (product + ' assets not found. Put its PNG/JPEG files in the same folder as this HTML, or inside /mockups.'));
@@ -4259,6 +4348,12 @@ function syncPreviewControlsForProduct(product) {
   const offset = getEffectiveOffsetForProduct(product);
   if (xEl) xEl.value = offset.x;
   if (yEl) yEl.value = offset.y;
+
+  const customToggle = document.getElementById('brandingCustomToggle');
+  const resetBtn = document.getElementById('brandingResetToGlobalBtn');
+  const custom = productHasCustomBranding(product);
+  if (customToggle) customToggle.checked = custom;
+  if (resetBtn) resetBtn.classList.toggle('hidden', !custom);
 }
 
 async function openProductPreview(product) {
@@ -4272,7 +4367,7 @@ async function openProductPreview(product) {
     await renderProductToCanvas(product, largeCanvas);
     largeCanvas.classList.remove('hidden');
     if (placeholder) placeholder.classList.add('hidden');
-    stampBrandingOverlay(largeCanvas);
+    stampBrandingOverlay(largeCanvas, product);
     refreshBrandingMarkers();
   } catch (err) {
     console.error(err);
@@ -4372,7 +4467,14 @@ document.getElementById('resetScaleBtn')?.addEventListener('click', () => {
   if (scaleEl) scaleEl.value = 80;
   if (xEl) xEl.value = 0;
   if (yEl) yEl.value = 0;
-  Object.keys(productOverrides).forEach(key => delete productOverrides[key]);
+  // Only the pattern-related fields — a per-product custom branding
+  // position is a separate concern this button was never meant to touch.
+  Object.keys(productOverrides).forEach(key => {
+    delete productOverrides[key].scale;
+    delete productOverrides[key].x;
+    delete productOverrides[key].y;
+    delete productOverrides[key].patternImg;
+  });
   reRenderVisibleQuickCards();
   if (currentPreviewProduct) {
     syncPreviewControlsForProduct(currentPreviewProduct);
@@ -4395,10 +4497,59 @@ document.getElementById('resetScaleBtn')?.addEventListener('click', () => {
 
 document.getElementById('previewMatchGlobalBtn')?.addEventListener('click', () => {
   if (!currentPreviewProduct) return;
-  delete productOverrides[currentPreviewProduct];
+  // Only the pattern's own scale/x/y reset here — productOverrides also
+  // carries this product's assigned pattern and any custom branding
+  // position now, and "match global scale" has no business touching either.
+  const o = productOverrides[currentPreviewProduct];
+  if (o) {
+    delete o.scale;
+    delete o.x;
+    delete o.y;
+  }
   syncPreviewControlsForProduct(currentPreviewProduct);
   refreshCurrentPreviewRender();
   renderQuickCard(currentPreviewProduct);
+});
+
+function clearProductBrandingOverride(product) {
+  const o = productOverrides[product];
+  if (!o) return;
+  delete o.brandingLogo;
+  delete o.brandingBadges;
+}
+
+document.getElementById('brandingCustomToggle')?.addEventListener('change', e => {
+  const product = currentPreviewProduct;
+  if (!product) return;
+
+  if (e.target.checked) {
+    // Seed every active marker from wherever it currently sits (the global
+    // placement) so switching this on never jumps anything — it just makes
+    // the existing spot editable independently from here on.
+    ensureLogoOverride(product);
+    brandingState.badges.forEach(badge => {
+      if (badge.enabled && badgeHasContent(badge)) ensureBadgeOverride(product, badge);
+    });
+  } else {
+    clearProductBrandingOverride(product);
+  }
+
+  document.getElementById('brandingResetToGlobalBtn')?.classList.toggle('hidden', !e.target.checked);
+  refreshBrandingMarkers();
+  refreshCurrentPreviewRender();
+  renderQuickCard(product);
+});
+
+document.getElementById('brandingResetToGlobalBtn')?.addEventListener('click', () => {
+  const product = currentPreviewProduct;
+  if (!product) return;
+  clearProductBrandingOverride(product);
+  const toggle = document.getElementById('brandingCustomToggle');
+  if (toggle) toggle.checked = false;
+  document.getElementById('brandingResetToGlobalBtn')?.classList.add('hidden');
+  refreshBrandingMarkers();
+  refreshCurrentPreviewRender();
+  renderQuickCard(product);
 });
 
 const collectionTray = document.getElementById('collectionTray');
@@ -6394,7 +6545,9 @@ function serializeProject() {
         scale: o.scale ?? null,
         x: o.x ?? null,
         y: o.y ?? null,
-        patternSrc: o.patternImg ? o.patternImg.src : null
+        patternSrc: o.patternImg ? o.patternImg.src : null,
+        brandingLogo: o.brandingLogo ?? null,
+        brandingBadges: o.brandingBadges ?? null
       }])
     ),
 
@@ -6507,7 +6660,13 @@ async function restoreProject(data) {
 
   const overrideLoads = [];
   Object.entries(data.productOverrides || {}).forEach(([product, o]) => {
-    productOverrides[product] = { scale: o.scale ?? undefined, x: o.x ?? undefined, y: o.y ?? undefined };
+    productOverrides[product] = {
+      scale: o.scale ?? undefined,
+      x: o.x ?? undefined,
+      y: o.y ?? undefined,
+      brandingLogo: o.brandingLogo || undefined,
+      brandingBadges: o.brandingBadges || undefined
+    };
     if (o.patternSrc) {
       overrideLoads.push(new Promise(resolve => {
         const img = new Image();
