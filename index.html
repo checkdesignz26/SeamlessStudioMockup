@@ -1373,11 +1373,29 @@ input[type=range] {
   box-shadow: 0 6px 18px rgba(0,0,0,0.22);
 }
 
+.palette-item .palette-swatch-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3%;
+  height: 100%;
+  flex: 0 0 auto;
+}
+
 .palette-item .palette-dot {
-  height: 60%;
+  height: 50%;
   aspect-ratio: 1;
   border-radius: 50%;
   box-shadow: 0 0 0 2px rgba(255,255,255,0.9), 0 2px 6px rgba(0,0,0,0.25);
+  flex: 0 0 auto;
+}
+
+.palette-item .palette-hex {
+  font-size: 10px;
+  color: #333;
+  font-family: 'Quicksand', sans-serif;
+  white-space: nowrap;
   flex: 0 0 auto;
 }
 
@@ -2131,7 +2149,7 @@ input[type=text] {
         <input type="range" id="ilFontSizeSlider" min="10" max="96" value="24">
         <label>colour</label>
         <div class="lookbook-palette-strip" id="ilPaletteStrip"></div>
-        <input type="color" id="ilCustomColorInput" style="display:none;">
+        <input type="color" id="ilCustomColorInput" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; border:none; padding:0;">
       </div>
     </div>
 
@@ -5772,15 +5790,25 @@ function ilCreatePaletteItem({ colors, x, y, w, h, zIndex }) {
   item.style.left = x + 'px';
   item.style.top = y + 'px';
   item.style.width = (w || Math.max(180, colors.length * 56)) + 'px';
-  item.style.height = (h || 64) + 'px';
+  item.style.height = (h || 84) + 'px';
   item.style.zIndex = zIndex || ++ilZIndexCounter;
   item.dataset.colors = JSON.stringify(colors);
 
   colors.forEach(color => {
+    const col = document.createElement('div');
+    col.className = 'palette-swatch-col';
+
     const dot = document.createElement('div');
     dot.className = 'palette-dot';
     dot.style.background = color;
-    item.appendChild(dot);
+    col.appendChild(dot);
+
+    const hex = document.createElement('span');
+    hex.className = 'palette-hex';
+    hex.textContent = color.toUpperCase();
+    col.appendChild(hex);
+
+    item.appendChild(col);
   });
 
   ilActiveCanvas().appendChild(item);
@@ -6316,10 +6344,12 @@ async function ilRasterizeCanvas(canvasEl, scaleFactor) {
         ilWrapText(ctx, textEl.innerText, 10, 8, iw - 20, parseFloat(style.fontSize) * 1.3);
       }
     } else if (item.classList.contains('palette-item')) {
-      // Mirrors the .palette-item CSS exactly: dots at 60% of the box
-      // height, laid out with equal gaps at both ends and in between
-      // (the canvas equivalent of justify-content: space-evenly), so the
-      // export matches the live drag/resizeable group pixel for pixel.
+      // Mirrors the .palette-item CSS exactly: each dot at 50% of the box
+      // height with its hex code below (a fixed 10px, same as the CSS,
+      // since neither scales with a resize), laid out with equal gaps at
+      // both ends and in between (the canvas equivalent of
+      // justify-content: space-evenly), so the export matches the live
+      // drag/resizeable group pixel for pixel.
       let colors = [];
       try { colors = JSON.parse(item.dataset.colors || '[]'); } catch (err) { colors = []; }
       const n = colors.length;
@@ -6335,15 +6365,27 @@ async function ilRasterizeCanvas(canvasEl, scaleFactor) {
         ctx.closePath();
         ctx.fill();
 
-        const dotSize = ih * 0.6;
+        const dotSize = ih * 0.5;
+        const gapPx = ih * 0.03;
+        const fontSize = 10;
+        const contentHeight = dotSize + gapPx + fontSize;
+        const startY = (ih - contentHeight) / 2;
+        const dotCenterY = startY + dotSize / 2;
+        const textY = startY + dotSize + gapPx;
         const gap = (iw - n * dotSize) / (n + 1);
+
         colors.forEach((color, i) => {
           const cx = gap * (i + 1) + dotSize * i + dotSize / 2;
-          const cy = ih / 2;
           ctx.fillStyle = color;
           ctx.beginPath();
-          ctx.arc(cx, cy, dotSize / 2, 0, Math.PI * 2);
+          ctx.arc(cx, dotCenterY, dotSize / 2, 0, Math.PI * 2);
           ctx.fill();
+
+          ctx.fillStyle = '#333333';
+          ctx.font = `${fontSize}px Quicksand, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText(color.toUpperCase(), cx, textY);
         });
       }
     } else {
