@@ -476,6 +476,16 @@ button:active { transform: scale(0.98); }
   border-color: transparent;
 }
 
+.milestone-unit-btn {
+  flex: 1;
+}
+
+.milestone-unit-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+  border-color: transparent;
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1822,9 +1832,24 @@ input[type=text] {
             <div class="card-footer">
               <div>
                 <h3>milestone blanket mock-up</h3>
-                <small>baby &amp; nursery · numbered month ring</small>
+                <small>baby &amp; nursery · month or week number grid</small>
               </div>
               <button class="secondary preview-btn" data-kind="quick" data-name="milestone blanket mock-up" type="button">preview</button>
+            </div>
+          </article>
+
+          <article class="mock-card" data-product="milestoneblanketyear" data-category="baby">
+            <button class="select-bubble" type="button" aria-label="select milestone blanket - 1 year">✓</button>
+            <div class="card-preview">
+              <canvas id="milestoneblanketyearQuickCanvas" class="quick-canvas hidden"></canvas>
+              <div class="placeholder-art" id="milestoneblanketyearPlaceholder"><span class="big">🎂</span>1 year blanket preview</div>
+            </div>
+            <div class="card-footer">
+              <div>
+                <h3>milestone blanket · 1 year mock-up</h3>
+                <small>baby &amp; nursery · first birthday design</small>
+              </div>
+              <button class="secondary preview-btn" data-kind="quick" data-name="milestone blanket - 1 year mock-up" type="button">preview</button>
             </div>
           </article>
 
@@ -1998,22 +2023,18 @@ input[type=text] {
         </div>
 
         <div id="milestoneBlanketControls" class="hidden" style="margin-top:14px;">
-          <label>milestone month</label>
-          <select id="milestoneMonthSelect">
-            <option value="1">1 month</option>
-            <option value="2">2 months</option>
-            <option value="3">3 months</option>
-            <option value="4">4 months</option>
-            <option value="5">5 months</option>
-            <option value="6">6 months</option>
-            <option value="7">7 months</option>
-            <option value="8">8 months</option>
-            <option value="9">9 months</option>
-            <option value="10">10 months</option>
-            <option value="11">11 months</option>
-            <option value="12">12 months</option>
-          </select>
-          <p style="color:var(--muted); font-size:12px; margin:8px 0 0;">📍 the number ring is drawn onto the blanket automatically — drag it (and its corner handle) into place on your photo from here, once.</p>
+          <label>tracking unit</label>
+          <div style="display:flex; gap:8px; margin-bottom:12px;">
+            <button type="button" class="secondary milestone-unit-btn active" data-unit="months">months (1–12)</button>
+            <button type="button" class="secondary milestone-unit-btn" data-unit="weeks">weeks (1–52)</button>
+          </div>
+          <label>milestone <span id="milestoneUnitLabel">month</span></label>
+          <select id="milestoneMonthSelect"></select>
+          <p style="color:var(--muted); font-size:12px; margin:8px 0 0;">📍 the number grid is drawn onto the blanket automatically — drag it (and its corner handle) into place on your photo from here, once. switching units keeps its position.</p>
+        </div>
+
+        <div id="milestoneYearControls" class="hidden" style="margin-top:14px;">
+          <p style="color:var(--muted); font-size:12px; margin:0;">📍 the "1 · YEAR" mark is drawn onto the blanket automatically — drag it (and its corner handle) into place on your photo from here, once.</p>
         </div>
 
         <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
@@ -2659,6 +2680,18 @@ function refreshBrandingMarkers() {
     }));
   }
 
+  if (product === 'milestoneblanketyear') {
+    brandingMarkerLayer.appendChild(createBrandingMarker('1 · year mark', milestoneYearX, milestoneYearY, (x, y) => {
+      milestoneYearX = x;
+      milestoneYearY = y;
+    }, {
+      get: () => milestoneYearSize,
+      set: v => { milestoneYearSize = Math.round(v); },
+      min: 15,
+      max: 70
+    }));
+  }
+
   layoutBrandingMarkers();
 }
 
@@ -2829,7 +2862,7 @@ function refreshCurrentPreviewRender() {
   }
 }
 
-const ALL_QUICK_PRODUCTS = ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset','swimsuit','milestoneblanket'];
+const ALL_QUICK_PRODUCTS = ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset','swimsuit','milestoneblanket','milestoneblanketyear'];
 
 function yieldToBrowser() {
   return new Promise(resolve => setTimeout(resolve, 0));
@@ -4004,21 +4037,28 @@ async function renderKitchenTowelMockupToCanvas(targetCanvas, forcedScalePercent
 }
 
 /* ---------- milestone blanket ----------
-   Real milestone blankets print a 3x4 grid of month numbers on the fabric
-   and mark the current month by setting a wooden ring toy on top of it in
-   the photo — that's the actual product convention (not a UI highlight),
-   so it's drawn fresh every render using a real cutout of the seller's own
-   ring toy prop (MilestoneRingToy.png) composited over the chosen number.
-   The grid's position/scale is user-placed per photo (see the draggable
-   marker in refreshBrandingMarkers) since this app has no way to know where
-   a given blanket photo wants it. */
+   Real milestone blankets print a grid of numbers on the fabric (months
+   1-12 or weeks 1-52) and mark the current one by setting a wooden ring toy
+   on top of it in the photo — that's the actual product convention (not a
+   UI highlight), so it's drawn fresh every render using a real cutout of
+   the seller's own ring toy prop (MilestoneRingToy.png) composited over the
+   chosen number. There's also a separate "1 year" variant blanket with a
+   fixed first-birthday design instead of a grid. Both share the same base
+   photo/mask; the grid/mark position+scale is user-placed per photo (see
+   the draggable markers in refreshBrandingMarkers) since this app has no
+   way to know where a given blanket photo wants them. */
 let milestoneBlanketBaseImage = null;
 let milestoneBlanketMaskImage = null;
 let milestoneRingToyImage = null;
+let milestoneUnit = 'months'; // 'months' | 'weeks'
 let milestoneRingX = 38;
 let milestoneRingY = 54;
 let milestoneRingSize = 34;
 let milestoneSelectedMonth = 1;
+let milestoneSelectedWeek = 1;
+let milestoneYearX = 50;
+let milestoneYearY = 54;
+let milestoneYearSize = 40;
 
 async function loadMilestoneBlanketAssets() {
   if (!milestoneBlanketBaseImage) {
@@ -4042,58 +4082,111 @@ async function loadMilestoneBlanketAssets() {
   return { base: milestoneBlanketBaseImage, mask: milestoneBlanketMaskImage, ring: milestoneRingToyImage };
 }
 
+// Shared by both milestone blanket variants (numbered grid + 1-year) since
+// they're the same physical blanket photo, just with a different design
+// printed on top.
+function compositeMilestonePattern(ctx, w, h, base, mask, product, forcedScalePercent) {
+  ctx.clearRect(0, 0, w, h);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(base, 0, 0, w, h);
+
+  const patternImg = getEffectivePatternForProduct(product);
+  if (!patternImg) return;
+
+  const scalePercent = forcedScalePercent || getEffectiveScaleForProduct(product);
+  const tile = createPatternTileCanvas(patternImg, scalePercent);
+  const offset = getEffectiveOffsetForProduct(product);
+
+  const patternLayer = document.createElement('canvas');
+  patternLayer.width = w;
+  patternLayer.height = h;
+  const pctx = patternLayer.getContext('2d');
+  pctx.imageSmoothingEnabled = true;
+  pctx.imageSmoothingQuality = 'high';
+  drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
+
+  pctx.globalCompositeOperation = 'destination-in';
+  pctx.drawImage(mask, 0, 0, w, h);
+  pctx.globalCompositeOperation = 'source-over';
+
+  boostPatternLayerContrast(patternLayer, 1.10, 1.05);
+
+  ctx.save();
+  ctx.globalAlpha = 0.90;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.14;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(patternLayer, 0, 0);
+  ctx.restore();
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+}
+
+function drawMilestoneTextWithHalo(ctx, text, x, y, fontSize, align) {
+  ctx.font = `600 ${Math.round(fontSize)}px 'Playfair Display', serif`;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = fontSize * 0.26;
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.lineJoin = 'round';
+  ctx.fillStyle = '#3c4a3d';
+  ctx.strokeText(text, x, y);
+  ctx.fillText(text, x, y);
+}
+
 function drawMilestoneNumberGrid(ctx, w, h, ringImg) {
+  const weeks = milestoneUnit === 'weeks';
+  const cols = weeks ? 13 : 3;
+  const rows = 4;
+  const total = cols * rows;
+  const selected = weeks ? milestoneSelectedWeek : milestoneSelectedMonth;
+
   const scale = milestoneRingSize / 100;
-  const unit = Math.min(w, h) * scale;
-  const fontSize = Math.max(16, unit * 0.34);
-  const colGap = fontSize * 1.85;
-  const rowGap = fontSize * 1.5;
+  const footprint = Math.min(w, h) * scale;
+  // weeks packs ~4.3x more cells into roughly the same footprint, so its
+  // font/spacing shrink accordingly to keep the whole grid a similar size.
+  const fontSize = Math.max(11, footprint * (weeks ? 0.115 : 0.34));
+  const colGap = fontSize * (weeks ? 1.7 : 1.85);
+  const rowGap = fontSize * (weeks ? 1.75 : 1.5);
   const cx = w * (milestoneRingX / 100);
   const cy = h * (milestoneRingY / 100);
 
-  const cellCenter = (month) => {
-    const col = (month - 1) % 3;
-    const row = Math.floor((month - 1) / 3);
+  const cellCenter = (n) => {
+    const col = (n - 1) % cols;
+    const row = Math.floor((n - 1) / cols);
     return {
-      x: cx + (col - 1) * colGap,
-      y: cy + (row - 1.5) * rowGap
+      x: cx + (col - (cols - 1) / 2) * colGap,
+      y: cy + (row - (rows - 1) / 2) * rowGap
     };
   };
 
   ctx.save();
-  ctx.font = `600 ${Math.round(fontSize)}px 'Playfair Display', serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.lineWidth = fontSize * 0.28;
-  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-  ctx.lineJoin = 'round';
-  ctx.fillStyle = '#3c4a3d';
-  for (let month = 1; month <= 12; month++) {
-    const { x, y } = cellCenter(month);
-    ctx.strokeText(String(month), x, y + fontSize * 0.05);
-    ctx.fillText(String(month), x, y + fontSize * 0.05);
+  for (let n = 1; n <= total; n++) {
+    const { x, y } = cellCenter(n);
+    drawMilestoneTextWithHalo(ctx, String(n), x, y + fontSize * 0.05, fontSize, 'center');
   }
 
-  const monthsX = cx + colGap * 2.15;
-  const monthsY = cy;
-  const monthsFontSize = fontSize * 1.05;
-  ctx.font = `600 ${Math.round(monthsFontSize)}px 'Playfair Display', serif`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.lineWidth = monthsFontSize * 0.22;
-  const label = 'MONTHS';
-  const letterSpacing = monthsFontSize * 0.05;
-  let lx = monthsX;
+  const labelX = cx + colGap * ((cols - 1) / 2 + 1.15);
+  const labelFontSize = fontSize * (weeks ? 1.3 : 1.05);
+  ctx.font = `600 ${Math.round(labelFontSize)}px 'Playfair Display', serif`;
+  const label = weeks ? 'WEEKS' : 'MONTHS';
+  const letterSpacing = labelFontSize * 0.05;
+  let lx = labelX;
   for (const ch of label) {
-    ctx.strokeText(ch, lx, monthsY);
-    ctx.fillText(ch, lx, monthsY);
+    drawMilestoneTextWithHalo(ctx, ch, lx, cy, labelFontSize, 'left');
     lx += ctx.measureText(ch).width + letterSpacing;
   }
   ctx.restore();
 
   if (ringImg) {
-    const selectedCenter = cellCenter(milestoneSelectedMonth);
-    const ringDiameter = fontSize * 2.15;
+    const selectedCenter = cellCenter(selected);
+    const ringDiameter = fontSize * (weeks ? 2.4 : 2.15);
     const ringAspect = (ringImg.naturalHeight || ringImg.height) / (ringImg.naturalWidth || ringImg.width);
     const dw = ringDiameter;
     const dh = ringDiameter * ringAspect;
@@ -4101,9 +4194,31 @@ function drawMilestoneNumberGrid(ctx, w, h, ringImg) {
   }
 }
 
-async function renderMilestoneBlanketMockupToCanvas(targetCanvas, forcedScalePercent = null) {
-  const patternImg = getEffectivePatternForProduct('milestoneblanket');
+function drawMilestoneYearMark(ctx, w, h) {
+  const scale = milestoneYearSize / 100;
+  const footprint = Math.min(w, h) * scale;
+  const numberFontSize = Math.max(28, footprint * 0.9);
+  const labelFontSize = numberFontSize * 0.32;
+  const cx = w * (milestoneYearX / 100);
+  const cy = h * (milestoneYearY / 100);
 
+  ctx.save();
+  drawMilestoneTextWithHalo(ctx, '1', cx, cy - numberFontSize * 0.32, numberFontSize, 'center');
+
+  const label = 'Y E A R';
+  ctx.font = `600 ${Math.round(labelFontSize)}px 'Playfair Display', serif`;
+  const totalWidth = [...label].reduce((sum, ch) => sum + ctx.measureText(ch).width, 0);
+  let lx = cx - totalWidth / 2;
+  const labelY = cy + numberFontSize * 0.44;
+  for (const ch of label) {
+    const chW = ctx.measureText(ch).width;
+    drawMilestoneTextWithHalo(ctx, ch, lx + chW / 2, labelY, labelFontSize, 'center');
+    lx += chW;
+  }
+  ctx.restore();
+}
+
+async function renderMilestoneBlanketMockupToCanvas(targetCanvas, forcedScalePercent = null) {
   const { base, mask, ring } = await loadMilestoneBlanketAssets();
   const w = base.naturalWidth || base.width;
   const h = base.naturalHeight || base.height;
@@ -4111,46 +4226,21 @@ async function renderMilestoneBlanketMockupToCanvas(targetCanvas, forcedScalePer
   targetCanvas.width = w;
   targetCanvas.height = h;
   const ctx = targetCanvas.getContext('2d');
-  ctx.clearRect(0, 0, w, h);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(base, 0, 0, w, h);
-
-  if (patternImg) {
-    const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('milestoneblanket');
-    const tile = createPatternTileCanvas(patternImg, scalePercent);
-    const offset = getEffectiveOffsetForProduct('milestoneblanket');
-
-    const patternLayer = document.createElement('canvas');
-    patternLayer.width = w;
-    patternLayer.height = h;
-    const pctx = patternLayer.getContext('2d');
-    pctx.imageSmoothingEnabled = true;
-    pctx.imageSmoothingQuality = 'high';
-    drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
-
-    pctx.globalCompositeOperation = 'destination-in';
-    pctx.drawImage(mask, 0, 0, w, h);
-    pctx.globalCompositeOperation = 'source-over';
-
-    boostPatternLayerContrast(patternLayer, 1.10, 1.05);
-
-    ctx.save();
-    ctx.globalAlpha = 0.90;
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.drawImage(patternLayer, 0, 0);
-    ctx.restore();
-
-    ctx.save();
-    ctx.globalAlpha = 0.14;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.drawImage(patternLayer, 0, 0);
-    ctx.restore();
-  }
-
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.globalAlpha = 1;
+  compositeMilestonePattern(ctx, w, h, base, mask, 'milestoneblanket', forcedScalePercent);
   drawMilestoneNumberGrid(ctx, w, h, ring);
+  return true;
+}
+
+async function renderMilestoneBlanketYearMockupToCanvas(targetCanvas, forcedScalePercent = null) {
+  const { base, mask } = await loadMilestoneBlanketAssets();
+  const w = base.naturalWidth || base.width;
+  const h = base.naturalHeight || base.height;
+
+  targetCanvas.width = w;
+  targetCanvas.height = h;
+  const ctx = targetCanvas.getContext('2d');
+  compositeMilestonePattern(ctx, w, h, base, mask, 'milestoneblanketyear', forcedScalePercent);
+  drawMilestoneYearMark(ctx, w, h);
   return true;
 }
 
@@ -4540,6 +4630,7 @@ async function renderProductToCanvas(product, targetCanvas) {
   if (product === 'bikiniset') return renderBikiniSetMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'swimsuit') return renderSwimsuitMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'milestoneblanket') return renderMilestoneBlanketMockupToCanvas(targetCanvas, window.__currentProductScale);
+  if (product === 'milestoneblanketyear') return renderMilestoneBlanketYearMockupToCanvas(targetCanvas, window.__currentProductScale);
 
   return false;
 }
@@ -4575,8 +4666,27 @@ function syncPreviewControlsForProduct(product) {
   if (customToggle) customToggle.checked = custom;
   if (resetBtn) resetBtn.classList.toggle('hidden', !custom);
 
+  document.querySelectorAll('.milestone-unit-btn').forEach(b => b.classList.toggle('active', b.dataset.unit === milestoneUnit));
+  const unitLabel = document.getElementById('milestoneUnitLabel');
+  if (unitLabel) unitLabel.textContent = milestoneUnit === 'weeks' ? 'week' : 'month';
+  populateMilestoneUnitOptions();
   const monthSelect = document.getElementById('milestoneMonthSelect');
-  if (monthSelect) monthSelect.value = String(milestoneSelectedMonth);
+  if (monthSelect) monthSelect.value = String(milestoneUnit === 'weeks' ? milestoneSelectedWeek : milestoneSelectedMonth);
+}
+
+function populateMilestoneUnitOptions() {
+  const select = document.getElementById('milestoneMonthSelect');
+  if (!select) return;
+  const weeks = milestoneUnit === 'weeks';
+  const count = weeks ? 52 : 12;
+  const unitWord = weeks ? 'week' : 'month';
+  select.innerHTML = '';
+  for (let n = 1; n <= count; n++) {
+    const opt = document.createElement('option');
+    opt.value = String(n);
+    opt.textContent = `${n} ${unitWord}${n === 1 ? '' : 's'}`;
+    select.appendChild(opt);
+  }
 }
 
 async function openProductPreview(product) {
@@ -4776,9 +4886,27 @@ document.getElementById('brandingResetToGlobalBtn')?.addEventListener('click', (
 });
 
 document.getElementById('milestoneMonthSelect')?.addEventListener('change', e => {
-  milestoneSelectedMonth = Number(e.target.value);
+  if (milestoneUnit === 'weeks') milestoneSelectedWeek = Number(e.target.value);
+  else milestoneSelectedMonth = Number(e.target.value);
   refreshCurrentPreviewRender();
   renderQuickCard('milestoneblanket');
+});
+
+document.querySelectorAll('.milestone-unit-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    milestoneUnit = btn.dataset.unit === 'weeks' ? 'weeks' : 'months';
+    document.querySelectorAll('.milestone-unit-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    populateMilestoneUnitOptions();
+    const monthSelect = document.getElementById('milestoneMonthSelect');
+    if (monthSelect) monthSelect.value = String(milestoneUnit === 'weeks' ? milestoneSelectedWeek : milestoneSelectedMonth);
+    const unitLabel = document.getElementById('milestoneUnitLabel');
+    if (unitLabel) unitLabel.textContent = milestoneUnit === 'weeks' ? 'week' : 'month';
+    if (currentPreviewProduct === 'milestoneblanket') {
+      openProductPreview('milestoneblanket');
+      renderQuickCard('milestoneblanket');
+    }
+  });
 });
 
 const collectionTray = document.getElementById('collectionTray');
@@ -5136,9 +5264,19 @@ document.getElementById('downloadQuickBtn').addEventListener('click', async () =
     }
   }
 
-  const notReady = selected.filter(p => p !== 'mug' && p !== 'greetingcard' && p !== 'kitchentowel' && p !== 'buckethat' && p !== 'beachtowel' && p !== 'bikiniset' && p !== 'swimsuit' && p !== 'milestoneblanket');
+  if (selected.includes('milestoneblanketyear')) {
+    const yearCanvas = document.getElementById('milestoneblanketyearQuickCanvas');
+    if (getEffectivePatternForProduct('milestoneblanketyear') && yearCanvas) {
+      if (yearCanvas.classList.contains('hidden')) await renderQuickCard('milestoneblanketyear');
+      downloadCanvasPNG(yearCanvas, 'milestone_blanket_1_year_mockup.png');
+    } else if (yearCanvas) {
+      showToastMessage('upload a pattern for milestone blanket - 1 year first');
+    }
+  }
+
+  const notReady = selected.filter(p => p !== 'mug' && p !== 'greetingcard' && p !== 'kitchentowel' && p !== 'buckethat' && p !== 'beachtowel' && p !== 'bikiniset' && p !== 'swimsuit' && p !== 'milestoneblanket' && p !== 'milestoneblanketyear');
   if (notReady.length) {
-    alert('Mug, greeting card, kitchen towel, bucket hat, beach towel, bikini set, swimsuit and milestone blanket download now. ' + notReady.join(', ') + ' engines are still placeholders.');
+    alert('Mug, greeting card, kitchen towel, bucket hat, beach towel, bikini set, swimsuit and milestone blanket (both variants) download now. ' + notReady.join(', ') + ' engines are still placeholders.');
   }
 });
 
@@ -6563,7 +6701,7 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
     if (previewPlaceholder) previewPlaceholder.classList.remove('hidden');
 
     if (!creative) {
-      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : name.includes('greeting card') ? 'greetingcard' : name.includes('kitchen towel') ? 'kitchentowel' : name.includes('bucket hat') ? 'buckethat' : name.includes('beach towel') ? 'beachtowel' : name.includes('bikini set') ? 'bikiniset' : name.includes('swimsuit') ? 'swimsuit' : name.includes('milestone blanket') ? 'milestoneblanket' : '';
+      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : name.includes('greeting card') ? 'greetingcard' : name.includes('kitchen towel') ? 'kitchentowel' : name.includes('bucket hat') ? 'buckethat' : name.includes('beach towel') ? 'beachtowel' : name.includes('bikini set') ? 'bikiniset' : name.includes('swimsuit') ? 'swimsuit' : name.includes('milestone blanket - 1 year') ? 'milestoneblanketyear' : name.includes('milestone blanket') ? 'milestoneblanket' : '';
       currentPreviewProduct = product;
       currentPreviewScene = '';
       document.getElementById('notebookSideControls')?.classList.toggle('hidden', product !== 'notebook');
@@ -6571,6 +6709,7 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
       document.getElementById('bikiniLiningControls')?.classList.toggle('hidden', product !== 'bikiniset');
       document.getElementById('swimsuitLiningControls')?.classList.toggle('hidden', product !== 'swimsuit');
       document.getElementById('milestoneBlanketControls')?.classList.toggle('hidden', product !== 'milestoneblanket');
+      document.getElementById('milestoneYearControls')?.classList.toggle('hidden', product !== 'milestoneblanketyear');
       if (product) openProductPreview(product);
     } else {
       currentPreviewProduct = '';
@@ -6804,10 +6943,15 @@ function serializeProject() {
     quickX: document.getElementById('quickX')?.value ?? null,
     quickY: document.getElementById('quickY')?.value ?? null,
 
+    milestoneUnit,
     milestoneSelectedMonth,
+    milestoneSelectedWeek,
     milestoneRingX,
     milestoneRingY,
     milestoneRingSize,
+    milestoneYearX,
+    milestoneYearY,
+    milestoneYearSize,
 
     productOverrides: Object.fromEntries(
       Object.entries(productOverrides).map(([product, o]) => [product, {
@@ -6927,10 +7071,15 @@ async function restoreProject(data) {
   if (data.quickX != null) { const el = document.getElementById('quickX'); if (el) el.value = data.quickX; }
   if (data.quickY != null) { const el = document.getElementById('quickY'); if (el) el.value = data.quickY; }
 
+  if (data.milestoneUnit != null) milestoneUnit = data.milestoneUnit;
   if (data.milestoneSelectedMonth != null) milestoneSelectedMonth = data.milestoneSelectedMonth;
+  if (data.milestoneSelectedWeek != null) milestoneSelectedWeek = data.milestoneSelectedWeek;
   if (data.milestoneRingX != null) milestoneRingX = data.milestoneRingX;
   if (data.milestoneRingY != null) milestoneRingY = data.milestoneRingY;
   if (data.milestoneRingSize != null) milestoneRingSize = data.milestoneRingSize;
+  if (data.milestoneYearX != null) milestoneYearX = data.milestoneYearX;
+  if (data.milestoneYearY != null) milestoneYearY = data.milestoneYearY;
+  if (data.milestoneYearSize != null) milestoneYearSize = data.milestoneYearSize;
 
   const overrideLoads = [];
   Object.entries(data.productOverrides || {}).forEach(([product, o]) => {
