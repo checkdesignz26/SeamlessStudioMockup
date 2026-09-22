@@ -2034,6 +2034,11 @@ input[type=text] {
           <label>lettering colour</label>
           <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">match it to your pattern, like the swimsuit lining colour.</p>
           <input type="color" id="milestoneTextColorInput" value="#3c4a3d">
+
+          <label style="display:block; margin-top:14px;">baby photo (optional)</label>
+          <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">for your own listing photos only — drops a small printed-photo prop onto the blanket. drag it into place once uploaded.</p>
+          <input type="file" accept="image/*" id="milestoneBabyPhotoInput">
+          <button class="secondary hidden" id="milestoneBabyPhotoRemoveBtn" type="button" style="width:100%; margin-top:8px;">remove photo</button>
         </div>
 
         <div id="milestoneYearControls" class="hidden" style="margin-top:14px;">
@@ -2041,6 +2046,11 @@ input[type=text] {
           <label>lettering colour</label>
           <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">match it to your pattern, like the swimsuit lining colour.</p>
           <input type="color" id="milestoneYearTextColorInput" value="#3c4a3d">
+
+          <label style="display:block; margin-top:14px;">baby photo (optional)</label>
+          <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">for your own listing photos only — drops a small printed-photo prop onto the blanket. drag it into place once uploaded.</p>
+          <input type="file" accept="image/*" id="milestoneYearBabyPhotoInput">
+          <button class="secondary hidden" id="milestoneYearBabyPhotoRemoveBtn" type="button" style="width:100%; margin-top:8px;">remove photo</button>
         </div>
 
         <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
@@ -2705,6 +2715,30 @@ function refreshBrandingMarkers() {
       set: v => { milestoneYearSize = Math.round(v); },
       min: 15,
       max: 70
+    }));
+  }
+
+  if (product === 'milestoneblanket' && milestoneBabyPhotoImage) {
+    brandingMarkerLayer.appendChild(createBrandingMarker('baby photo', milestoneBabyPhotoX, milestoneBabyPhotoY, (x, y) => {
+      milestoneBabyPhotoX = x;
+      milestoneBabyPhotoY = y;
+    }, {
+      get: () => milestoneBabyPhotoSize,
+      set: v => { milestoneBabyPhotoSize = Math.round(v); },
+      min: 12,
+      max: 50
+    }));
+  }
+
+  if (product === 'milestoneblanketyear' && milestoneYearBabyPhotoImage) {
+    brandingMarkerLayer.appendChild(createBrandingMarker('baby photo', milestoneYearBabyPhotoX, milestoneYearBabyPhotoY, (x, y) => {
+      milestoneYearBabyPhotoX = x;
+      milestoneYearBabyPhotoY = y;
+    }, {
+      get: () => milestoneYearBabyPhotoSize,
+      set: v => { milestoneYearBabyPhotoSize = Math.round(v); },
+      min: 12,
+      max: 50
     }));
   }
 
@@ -4077,6 +4111,81 @@ let milestoneYearY = 54;
 let milestoneYearSize = 40;
 let milestoneTextColor = '#3c4a3d';
 
+// Optional prop photo composited onto the blanket like a small printed
+// photo resting on the fabric — for the seller's OWN marketing/listing
+// images, not a stand-in for a real customer's baby (that only ever
+// happens on the physical blanket, after it ships). Independent per
+// milestone product since the grid/year design and this can each be
+// positioned separately.
+let milestoneBabyPhotoSrc = null;
+let milestoneBabyPhotoImage = null;
+let milestoneBabyPhotoX = 74;
+let milestoneBabyPhotoY = 80;
+let milestoneBabyPhotoSize = 26;
+let milestoneYearBabyPhotoSrc = null;
+let milestoneYearBabyPhotoImage = null;
+let milestoneYearBabyPhotoX = 74;
+let milestoneYearBabyPhotoY = 80;
+let milestoneYearBabyPhotoSize = 26;
+
+function traceRoundedRect(ctx, x, y, w, h, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+}
+
+function drawMilestoneBabyPhoto(ctx, w, h, img, xPercent, yPercent, sizePercent) {
+  if (!img) return;
+  const cx = w * (xPercent / 100);
+  const cy = h * (yPercent / 100);
+  const frameW = Math.min(w, h) * (sizePercent / 100);
+  const frameH = frameW * 1.15;
+  const border = frameW * 0.06;
+  const radius = frameW * 0.05;
+
+  const photoW = frameW - border * 2;
+  const photoH = frameH - border * 3.2; // extra room at the bottom, like a polaroid
+  const photoX = cx - photoW / 2;
+  const photoY = cy - frameH / 2 + border;
+
+  // cover-fit crop: fill the frame without distorting the photo
+  const imgW = img.naturalWidth || img.width;
+  const imgH = img.naturalHeight || img.height;
+  const srcAspect = imgW / imgH;
+  const dstAspect = photoW / photoH;
+  let sx, sy, sw, sh;
+  if (srcAspect > dstAspect) {
+    sh = imgH;
+    sw = imgH * dstAspect;
+    sx = (imgW - sw) / 2;
+    sy = 0;
+  } else {
+    sw = imgW;
+    sh = imgW / dstAspect;
+    sx = 0;
+    sy = (imgH - sh) / 2;
+  }
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = frameW * 0.06;
+  ctx.shadowOffsetY = frameW * 0.02;
+  ctx.fillStyle = '#ffffff';
+  traceRoundedRect(ctx, cx - frameW / 2, cy - frameH / 2, frameW, frameH, radius);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  traceRoundedRect(ctx, photoX, photoY, photoW, photoH, radius * 0.6);
+  ctx.clip();
+  ctx.drawImage(img, sx, sy, sw, sh, photoX, photoY, photoW, photoH);
+  ctx.restore();
+}
+
 async function loadMilestoneBlanketAssets() {
   if (!milestoneBlanketBaseImage) {
     milestoneBlanketBaseImage = await loadAssetImageFromCandidates([
@@ -4364,6 +4473,7 @@ async function renderMilestoneBlanketMockupToCanvas(targetCanvas, forcedScalePer
   const ctx = targetCanvas.getContext('2d');
   compositeMilestonePattern(ctx, w, h, base, mask, 'milestoneblanket', forcedScalePercent);
   drawMilestoneNumberGrid(ctx, w, h, ring);
+  drawMilestoneBabyPhoto(ctx, w, h, milestoneBabyPhotoImage, milestoneBabyPhotoX, milestoneBabyPhotoY, milestoneBabyPhotoSize);
   return true;
 }
 
@@ -4377,6 +4487,7 @@ async function renderMilestoneBlanketYearMockupToCanvas(targetCanvas, forcedScal
   const ctx = targetCanvas.getContext('2d');
   compositeMilestonePattern(ctx, w, h, base, mask, 'milestoneblanketyear', forcedScalePercent);
   drawMilestoneYearMark(ctx, w, h);
+  drawMilestoneBabyPhoto(ctx, w, h, milestoneYearBabyPhotoImage, milestoneYearBabyPhotoX, milestoneYearBabyPhotoY, milestoneYearBabyPhotoSize);
   return true;
 }
 
@@ -4813,6 +4924,9 @@ function syncPreviewControlsForProduct(product) {
   if (textColorInput) textColorInput.value = milestoneTextColor;
   const yearTextColorInput = document.getElementById('milestoneYearTextColorInput');
   if (yearTextColorInput) yearTextColorInput.value = milestoneTextColor;
+
+  document.getElementById('milestoneBabyPhotoRemoveBtn')?.classList.toggle('hidden', !milestoneBabyPhotoImage);
+  document.getElementById('milestoneYearBabyPhotoRemoveBtn')?.classList.toggle('hidden', !milestoneYearBabyPhotoImage);
 }
 
 function populateMilestoneUnitOptions() {
@@ -5072,6 +5186,49 @@ function setMilestoneTextColor(hex) {
 }
 document.getElementById('milestoneTextColorInput')?.addEventListener('input', e => setMilestoneTextColor(e.target.value));
 document.getElementById('milestoneYearTextColorInput')?.addEventListener('input', e => setMilestoneTextColor(e.target.value));
+
+// The baby-photo prop is wired identically for both milestone products,
+// just against a different set of state vars/elements each time.
+function setupMilestoneBabyPhotoControls(inputId, removeBtnId, setImage, setSrc, product) {
+  document.getElementById(inputId)?.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        setImage(img);
+        setSrc(ev.target.result);
+        document.getElementById(removeBtnId)?.classList.remove('hidden');
+        if (currentPreviewProduct === product) {
+          refreshCurrentPreviewRender();
+        }
+        renderQuickCard(product);
+        scheduleAutosave();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  });
+
+  document.getElementById(removeBtnId)?.addEventListener('click', () => {
+    setImage(null);
+    setSrc(null);
+    document.getElementById(removeBtnId)?.classList.add('hidden');
+    const input = document.getElementById(inputId);
+    if (input) input.value = '';
+    if (currentPreviewProduct === product) {
+      refreshCurrentPreviewRender();
+    }
+    renderQuickCard(product);
+    scheduleAutosave();
+  });
+}
+setupMilestoneBabyPhotoControls('milestoneBabyPhotoInput', 'milestoneBabyPhotoRemoveBtn',
+  img => { milestoneBabyPhotoImage = img; }, src => { milestoneBabyPhotoSrc = src; }, 'milestoneblanket');
+setupMilestoneBabyPhotoControls('milestoneYearBabyPhotoInput', 'milestoneYearBabyPhotoRemoveBtn',
+  img => { milestoneYearBabyPhotoImage = img; }, src => { milestoneYearBabyPhotoSrc = src; }, 'milestoneblanketyear');
 
 const collectionTray = document.getElementById('collectionTray');
 let trayPatterns = [];
@@ -7117,6 +7274,14 @@ function serializeProject() {
     milestoneYearY,
     milestoneYearSize,
     milestoneTextColor,
+    milestoneBabyPhotoSrc,
+    milestoneBabyPhotoX,
+    milestoneBabyPhotoY,
+    milestoneBabyPhotoSize,
+    milestoneYearBabyPhotoSrc,
+    milestoneYearBabyPhotoX,
+    milestoneYearBabyPhotoY,
+    milestoneYearBabyPhotoSize,
 
     productOverrides: Object.fromEntries(
       Object.entries(productOverrides).map(([product, o]) => [product, {
@@ -7246,8 +7411,30 @@ async function restoreProject(data) {
   if (data.milestoneYearY != null) milestoneYearY = data.milestoneYearY;
   if (data.milestoneYearSize != null) milestoneYearSize = data.milestoneYearSize;
   if (data.milestoneTextColor != null) milestoneTextColor = data.milestoneTextColor;
+  if (data.milestoneBabyPhotoX != null) milestoneBabyPhotoX = data.milestoneBabyPhotoX;
+  if (data.milestoneBabyPhotoY != null) milestoneBabyPhotoY = data.milestoneBabyPhotoY;
+  if (data.milestoneBabyPhotoSize != null) milestoneBabyPhotoSize = data.milestoneBabyPhotoSize;
+  if (data.milestoneYearBabyPhotoX != null) milestoneYearBabyPhotoX = data.milestoneYearBabyPhotoX;
+  if (data.milestoneYearBabyPhotoY != null) milestoneYearBabyPhotoY = data.milestoneYearBabyPhotoY;
+  if (data.milestoneYearBabyPhotoSize != null) milestoneYearBabyPhotoSize = data.milestoneYearBabyPhotoSize;
 
   const overrideLoads = [];
+  if (data.milestoneBabyPhotoSrc) {
+    overrideLoads.push(new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => { milestoneBabyPhotoSrc = data.milestoneBabyPhotoSrc; milestoneBabyPhotoImage = img; resolve(); };
+      img.onerror = resolve;
+      img.src = data.milestoneBabyPhotoSrc;
+    }));
+  }
+  if (data.milestoneYearBabyPhotoSrc) {
+    overrideLoads.push(new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => { milestoneYearBabyPhotoSrc = data.milestoneYearBabyPhotoSrc; milestoneYearBabyPhotoImage = img; resolve(); };
+      img.onerror = resolve;
+      img.src = data.milestoneYearBabyPhotoSrc;
+    }));
+  }
   Object.entries(data.productOverrides || {}).forEach(([product, o]) => {
     productOverrides[product] = {
       scale: o.scale ?? undefined,
