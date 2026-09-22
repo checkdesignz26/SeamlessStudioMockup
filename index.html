@@ -4138,16 +4138,32 @@ const MILESTONE_FONT = "'Caveat', cursive";
 
 // A soft drop shadow instead of a hard outline — reads like ink/thread
 // actually sitting on the fabric rather than a UI sticker.
+//
+// Centers on the glyph's actual rendered ink, not textBaseline:'middle'
+// (which centers on the font's em-box/metrics instead). Caveat, being a
+// script font, carries a lot of extra built-in space for loops and tails
+// even on plain digits, so its em-box center sits well below and right of
+// where the ink actually looks centered — that mismatch is what threw the
+// wooden ring off from the number it's supposed to sit on.
 function drawMilestoneText(ctx, text, x, y, fontSize, align) {
   ctx.font = `700 ${Math.round(fontSize)}px ${MILESTONE_FONT}`;
-  ctx.textAlign = align;
-  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#3c4a3d';
   ctx.shadowColor = 'rgba(0,0,0,0.35)';
   ctx.shadowBlur = fontSize * 0.09;
   ctx.shadowOffsetX = fontSize * 0.02;
   ctx.shadowOffsetY = fontSize * 0.05;
-  ctx.fillText(text, x, y);
+
+  const m = ctx.measureText(text);
+  const asc = m.actualBoundingBoxAscent ?? fontSize * 0.35;
+  const desc = m.actualBoundingBoxDescent ?? fontSize * 0.05;
+  const left = m.actualBoundingBoxLeft ?? 0;
+  const right = m.actualBoundingBoxRight ?? m.width;
+
+  const drawY = y + (asc - desc) / 2;
+  const drawX = align === 'center' ? x - (right - left) / 2 : x;
+  ctx.fillText(text, drawX, drawY);
 }
 
 function measureMilestoneLabelWidth(ctx, label, fontSize, letterSpacing) {
