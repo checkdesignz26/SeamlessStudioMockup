@@ -2044,7 +2044,7 @@ input[type=text] {
             <label>photo size</label>
             <input id="milestoneBabyPhotoSizeInput" type="range" min="12" max="70" value="34">
             <label style="margin-top:8px;">shadow strength</label>
-            <input id="milestoneBabyPhotoShadowInput" type="range" min="0" max="100" value="40">
+            <input id="milestoneBabyPhotoShadowInput" type="range" min="0" max="100" value="60">
           </div>
         </div>
 
@@ -2062,7 +2062,7 @@ input[type=text] {
             <label>photo size</label>
             <input id="milestoneYearBabyPhotoSizeInput" type="range" min="12" max="70" value="34">
             <label style="margin-top:8px;">shadow strength</label>
-            <input id="milestoneYearBabyPhotoShadowInput" type="range" min="0" max="100" value="40">
+            <input id="milestoneYearBabyPhotoShadowInput" type="range" min="0" max="100" value="60">
           </div>
         </div>
 
@@ -4159,15 +4159,15 @@ let milestoneBabyPhotoImage = null;
 let milestoneBabyPhotoX = 74;
 let milestoneBabyPhotoY = 56;
 let milestoneBabyPhotoSize = 34;
-let milestoneBabyPhotoShadowStrength = 40;
+let milestoneBabyPhotoShadowStrength = 60;
 let milestoneYearBabyPhotoSrc = null;
 let milestoneYearBabyPhotoImage = null;
 let milestoneYearBabyPhotoX = 74;
 let milestoneYearBabyPhotoY = 56;
 let milestoneYearBabyPhotoSize = 34;
-let milestoneYearBabyPhotoShadowStrength = 40;
+let milestoneYearBabyPhotoShadowStrength = 60;
 
-function drawMilestoneBabyPhoto(ctx, w, h, img, xPercent, yPercent, sizePercent, shadowStrength = 40) {
+function drawMilestoneBabyPhoto(ctx, w, h, img, xPercent, yPercent, sizePercent, shadowStrength = 60) {
   if (!img) return;
   const cx = w * (xPercent / 100);
   const cy = h * (yPercent / 100);
@@ -4194,9 +4194,12 @@ function drawMilestoneBabyPhoto(ctx, w, h, img, xPercent, yPercent, sizePercent,
   sctx.fillStyle = '#000000';
   sctx.fillRect(0, 0, silhouette.width, silhouette.height);
 
-  const shadowOffsetX = dw * 0.025;
-  const shadowOffsetY = dh * 0.04;
-  const shadowBlur = Math.max(2, dw * 0.05);
+  // a tight contact shadow, not a glow: small offset, small blur — matching
+  // the seller's own Photoshop recipe (duplicate, alpha-lock, nudge, blur
+  // ~15%, opacity ~60%) rather than a large soft halo
+  const shadowOffsetX = dw * 0.012;
+  const shadowOffsetY = dh * 0.016;
+  const shadowBlur = Math.max(1, dw * 0.015);
 
   const shadowAlpha = Math.max(0, Math.min(100, shadowStrength)) / 100;
   if (shadowAlpha > 0) {
