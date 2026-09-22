@@ -1625,6 +1625,7 @@ input[type=text] {
               <button class="secondary category-btn" data-category="stationery" type="button">stationery &amp; desk</button>
               <button class="secondary category-btn" data-category="home" type="button">home &amp; living</button>
               <button class="secondary category-btn" data-category="beachwear" type="button">beachwear</button>
+              <button class="secondary category-btn" data-category="baby" type="button">baby &amp; nursery</button>
             </div>
 
             <div class="card-grid" id="quickGrid">
@@ -1791,6 +1792,21 @@ input[type=text] {
                 <small>beachwear · lining colour is adjustable</small>
               </div>
               <button class="secondary preview-btn" data-kind="quick" data-name="swimsuit mock-up" type="button">preview</button>
+            </div>
+          </article>
+
+          <article class="mock-card" data-product="milestoneblanket" data-category="baby">
+            <button class="select-bubble" type="button" aria-label="select milestone blanket">✓</button>
+            <div class="card-preview">
+              <canvas id="milestoneblanketQuickCanvas" class="quick-canvas hidden"></canvas>
+              <div class="placeholder-art" id="milestoneblanketPlaceholder"><span class="big">🍼</span>milestone blanket preview</div>
+            </div>
+            <div class="card-footer">
+              <div>
+                <h3>milestone blanket mock-up</h3>
+                <small>baby &amp; nursery · numbered month ring</small>
+              </div>
+              <button class="secondary preview-btn" data-kind="quick" data-name="milestone blanket mock-up" type="button">preview</button>
             </div>
           </article>
 
@@ -1961,6 +1977,25 @@ input[type=text] {
           <label>inside lining colour</label>
           <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">the strap and leg-opening linings are a solid colour in real life — pick whatever coordinates with your pattern.</p>
           <input type="color" id="swimsuitLiningColorInput" value="#ffffff">
+        </div>
+
+        <div id="milestoneBlanketControls" class="hidden" style="margin-top:14px;">
+          <label>milestone month</label>
+          <select id="milestoneMonthSelect">
+            <option value="1">1 month</option>
+            <option value="2">2 months</option>
+            <option value="3">3 months</option>
+            <option value="4">4 months</option>
+            <option value="5">5 months</option>
+            <option value="6">6 months</option>
+            <option value="7">7 months</option>
+            <option value="8">8 months</option>
+            <option value="9">9 months</option>
+            <option value="10">10 months</option>
+            <option value="11">11 months</option>
+            <option value="12">12 months</option>
+          </select>
+          <p style="color:var(--muted); font-size:12px; margin:8px 0 0;">📍 the number ring is drawn onto the blanket automatically — drag it (and its corner handle) into place on your photo from here, once.</p>
         </div>
 
         <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
@@ -2591,6 +2626,18 @@ function refreshBrandingMarkers() {
     }));
   });
 
+  if (product === 'milestoneblanket') {
+    brandingMarkerLayer.appendChild(createBrandingMarker('number ring', milestoneRingX, milestoneRingY, (x, y) => {
+      milestoneRingX = x;
+      milestoneRingY = y;
+    }, {
+      get: () => milestoneRingSize,
+      set: v => { milestoneRingSize = Math.round(v); },
+      min: 15,
+      max: 80
+    }));
+  }
+
   layoutBrandingMarkers();
 }
 
@@ -2761,7 +2808,7 @@ function refreshCurrentPreviewRender() {
   }
 }
 
-const ALL_QUICK_PRODUCTS = ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset','swimsuit'];
+const ALL_QUICK_PRODUCTS = ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset','swimsuit','milestoneblanket'];
 
 function yieldToBrowser() {
   return new Promise(resolve => setTimeout(resolve, 0));
@@ -3935,6 +3982,123 @@ async function renderKitchenTowelMockupToCanvas(targetCanvas, forcedScalePercent
   return true;
 }
 
+/* ---------- milestone blanket ----------
+   The one product where the seller's pattern isn't the whole story — real
+   milestone blankets carry a wreath of month numbers, one highlighted per
+   photo. There's no art asset for that (it's drawn fresh every render), so
+   only the base photo + mask are real files; the ring's position/size is
+   user-placed per photo (see the draggable marker in refreshBrandingMarkers)
+   since this app has no way to know where a given blanket photo wants it. */
+let milestoneBlanketBaseImage = null;
+let milestoneBlanketMaskImage = null;
+let milestoneRingX = 50;
+let milestoneRingY = 28;
+let milestoneRingSize = 46;
+let milestoneSelectedMonth = 1;
+
+async function loadMilestoneBlanketAssets() {
+  if (!milestoneBlanketBaseImage) {
+    milestoneBlanketBaseImage = await loadAssetImageFromCandidates([
+      './MilestoneBlanketMockup.png',
+      './mockups/MilestoneBlanketMockup.png'
+    ], 'milestone blanket base');
+  }
+  if (!milestoneBlanketMaskImage) {
+    milestoneBlanketMaskImage = await loadAssetImageFromCandidates([
+      './MilestoneBlanketMask.png',
+      './mockups/MilestoneBlanketMask.png'
+    ], 'milestone blanket mask');
+  }
+  return { base: milestoneBlanketBaseImage, mask: milestoneBlanketMaskImage };
+}
+
+function drawMilestoneNumberRing(ctx, w, h) {
+  const cx = w * (milestoneRingX / 100);
+  const cy = h * (milestoneRingY / 100);
+  const ringRadius = Math.min(w, h) * (milestoneRingSize / 100) / 2;
+  const dotRadius = Math.max(14, ringRadius * 0.24);
+
+  for (let month = 1; month <= 12; month++) {
+    const angle = ((month - 1) / 12) * Math.PI * 2 - Math.PI / 2;
+    const nx = cx + Math.cos(angle) * ringRadius;
+    const ny = cy + Math.sin(angle) * ringRadius;
+    const selected = month === milestoneSelectedMonth;
+    const r = selected ? dotRadius * 1.3 : dotRadius;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(nx, ny, r, 0, Math.PI * 2);
+    ctx.fillStyle = selected ? '#c98a4b' : 'rgba(255,255,255,0.92)';
+    ctx.shadowColor = 'rgba(0,0,0,0.25)';
+    ctx.shadowBlur = r * 0.35;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = Math.max(1.5, r * 0.08);
+    ctx.strokeStyle = selected ? '#8a5a2b' : 'rgba(0,0,0,0.25)';
+    ctx.stroke();
+
+    ctx.fillStyle = selected ? '#ffffff' : '#3a2f28';
+    ctx.font = `700 ${Math.round(r * 1.05)}px Quicksand, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(month), nx, ny + r * 0.05);
+    ctx.restore();
+  }
+}
+
+async function renderMilestoneBlanketMockupToCanvas(targetCanvas, forcedScalePercent = null) {
+  const patternImg = getEffectivePatternForProduct('milestoneblanket');
+
+  const { base, mask } = await loadMilestoneBlanketAssets();
+  const w = base.naturalWidth || base.width;
+  const h = base.naturalHeight || base.height;
+
+  targetCanvas.width = w;
+  targetCanvas.height = h;
+  const ctx = targetCanvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(base, 0, 0, w, h);
+
+  if (patternImg) {
+    const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('milestoneblanket');
+    const tile = createPatternTileCanvas(patternImg, scalePercent);
+    const offset = getEffectiveOffsetForProduct('milestoneblanket');
+
+    const patternLayer = document.createElement('canvas');
+    patternLayer.width = w;
+    patternLayer.height = h;
+    const pctx = patternLayer.getContext('2d');
+    pctx.imageSmoothingEnabled = true;
+    pctx.imageSmoothingQuality = 'high';
+    drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
+
+    pctx.globalCompositeOperation = 'destination-in';
+    pctx.drawImage(mask, 0, 0, w, h);
+    pctx.globalCompositeOperation = 'source-over';
+
+    boostPatternLayerContrast(patternLayer, 1.10, 1.05);
+
+    ctx.save();
+    ctx.globalAlpha = 0.90;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
+  }
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  drawMilestoneNumberRing(ctx, w, h);
+  return true;
+}
+
 let bucketHatBaseImage = null;
 let bucketHatMaskImage = null;
 
@@ -4320,6 +4484,7 @@ async function renderProductToCanvas(product, targetCanvas) {
   if (product === 'beachtowel') return renderBeachTowelMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'bikiniset') return renderBikiniSetMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'swimsuit') return renderSwimsuitMockupToCanvas(targetCanvas, window.__currentProductScale);
+  if (product === 'milestoneblanket') return renderMilestoneBlanketMockupToCanvas(targetCanvas, window.__currentProductScale);
 
   return false;
 }
@@ -4354,6 +4519,9 @@ function syncPreviewControlsForProduct(product) {
   const custom = productHasCustomBranding(product);
   if (customToggle) customToggle.checked = custom;
   if (resetBtn) resetBtn.classList.toggle('hidden', !custom);
+
+  const monthSelect = document.getElementById('milestoneMonthSelect');
+  if (monthSelect) monthSelect.value = String(milestoneSelectedMonth);
 }
 
 async function openProductPreview(product) {
@@ -4550,6 +4718,12 @@ document.getElementById('brandingResetToGlobalBtn')?.addEventListener('click', (
   refreshBrandingMarkers();
   refreshCurrentPreviewRender();
   renderQuickCard(product);
+});
+
+document.getElementById('milestoneMonthSelect')?.addEventListener('change', e => {
+  milestoneSelectedMonth = Number(e.target.value);
+  refreshCurrentPreviewRender();
+  renderQuickCard('milestoneblanket');
 });
 
 const collectionTray = document.getElementById('collectionTray');
@@ -4897,9 +5071,19 @@ document.getElementById('downloadQuickBtn').addEventListener('click', async () =
     }
   }
 
-  const notReady = selected.filter(p => p !== 'mug' && p !== 'greetingcard' && p !== 'kitchentowel' && p !== 'buckethat' && p !== 'beachtowel' && p !== 'bikiniset' && p !== 'swimsuit');
+  if (selected.includes('milestoneblanket')) {
+    const blanketCanvas = document.getElementById('milestoneblanketQuickCanvas');
+    if (getEffectivePatternForProduct('milestoneblanket') && blanketCanvas) {
+      if (blanketCanvas.classList.contains('hidden')) await renderQuickCard('milestoneblanket');
+      downloadCanvasPNG(blanketCanvas, 'milestone_blanket_mockup.png');
+    } else if (blanketCanvas) {
+      showToastMessage('upload a pattern for milestone blanket first');
+    }
+  }
+
+  const notReady = selected.filter(p => p !== 'mug' && p !== 'greetingcard' && p !== 'kitchentowel' && p !== 'buckethat' && p !== 'beachtowel' && p !== 'bikiniset' && p !== 'swimsuit' && p !== 'milestoneblanket');
   if (notReady.length) {
-    alert('Mug, greeting card, kitchen towel, bucket hat, beach towel, bikini set and swimsuit download now. ' + notReady.join(', ') + ' engines are still placeholders.');
+    alert('Mug, greeting card, kitchen towel, bucket hat, beach towel, bikini set, swimsuit and milestone blanket download now. ' + notReady.join(', ') + ' engines are still placeholders.');
   }
 });
 
@@ -6300,13 +6484,14 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
     if (previewPlaceholder) previewPlaceholder.classList.remove('hidden');
 
     if (!creative) {
-      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : name.includes('greeting card') ? 'greetingcard' : name.includes('kitchen towel') ? 'kitchentowel' : name.includes('bucket hat') ? 'buckethat' : name.includes('beach towel') ? 'beachtowel' : name.includes('bikini set') ? 'bikiniset' : name.includes('swimsuit') ? 'swimsuit' : '';
+      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : name.includes('greeting card') ? 'greetingcard' : name.includes('kitchen towel') ? 'kitchentowel' : name.includes('bucket hat') ? 'buckethat' : name.includes('beach towel') ? 'beachtowel' : name.includes('bikini set') ? 'bikiniset' : name.includes('swimsuit') ? 'swimsuit' : name.includes('milestone blanket') ? 'milestoneblanket' : '';
       currentPreviewProduct = product;
       currentPreviewScene = '';
       document.getElementById('notebookSideControls')?.classList.toggle('hidden', product !== 'notebook');
       document.getElementById('greetingCardModeControls')?.classList.toggle('hidden', product !== 'greetingcard');
       document.getElementById('bikiniLiningControls')?.classList.toggle('hidden', product !== 'bikiniset');
       document.getElementById('swimsuitLiningControls')?.classList.toggle('hidden', product !== 'swimsuit');
+      document.getElementById('milestoneBlanketControls')?.classList.toggle('hidden', product !== 'milestoneblanket');
       if (product) openProductPreview(product);
     } else {
       currentPreviewProduct = '';
@@ -6540,6 +6725,11 @@ function serializeProject() {
     quickX: document.getElementById('quickX')?.value ?? null,
     quickY: document.getElementById('quickY')?.value ?? null,
 
+    milestoneSelectedMonth,
+    milestoneRingX,
+    milestoneRingY,
+    milestoneRingSize,
+
     productOverrides: Object.fromEntries(
       Object.entries(productOverrides).map(([product, o]) => [product, {
         scale: o.scale ?? null,
@@ -6657,6 +6847,11 @@ async function restoreProject(data) {
   if (data.quickScale != null) { const el = document.getElementById('quickScale'); if (el) el.value = data.quickScale; }
   if (data.quickX != null) { const el = document.getElementById('quickX'); if (el) el.value = data.quickX; }
   if (data.quickY != null) { const el = document.getElementById('quickY'); if (el) el.value = data.quickY; }
+
+  if (data.milestoneSelectedMonth != null) milestoneSelectedMonth = data.milestoneSelectedMonth;
+  if (data.milestoneRingX != null) milestoneRingX = data.milestoneRingX;
+  if (data.milestoneRingY != null) milestoneRingY = data.milestoneRingY;
+  if (data.milestoneRingSize != null) milestoneRingSize = data.milestoneRingSize;
 
   const overrideLoads = [];
   Object.entries(data.productOverrides || {}).forEach(([product, o]) => {
