@@ -2042,7 +2042,7 @@ input[type=text] {
           <button class="secondary hidden" id="milestoneBabyPhotoRemoveBtn" type="button" style="width:100%; margin-top:8px;">remove photo</button>
           <div id="milestoneBabyPhotoSizeControls" class="hidden" style="margin-top:10px;">
             <label>photo size</label>
-            <input id="milestoneBabyPhotoSizeInput" type="range" min="12" max="70" value="34">
+            <input id="milestoneBabyPhotoSizeInput" type="range" min="12" max="100" value="50">
             <label style="margin-top:8px;">shadow strength</label>
             <input id="milestoneBabyPhotoShadowInput" type="range" min="0" max="100" value="60">
           </div>
@@ -2060,7 +2060,7 @@ input[type=text] {
           <button class="secondary hidden" id="milestoneYearBabyPhotoRemoveBtn" type="button" style="width:100%; margin-top:8px;">remove photo</button>
           <div id="milestoneYearBabyPhotoSizeControls" class="hidden" style="margin-top:10px;">
             <label>photo size</label>
-            <input id="milestoneYearBabyPhotoSizeInput" type="range" min="12" max="70" value="34">
+            <input id="milestoneYearBabyPhotoSizeInput" type="range" min="12" max="100" value="50">
             <label style="margin-top:8px;">shadow strength</label>
             <input id="milestoneYearBabyPhotoShadowInput" type="range" min="0" max="100" value="60">
           </div>
@@ -2748,7 +2748,7 @@ function refreshBrandingMarkers() {
       get: () => milestoneBabyPhotoSize,
       set: v => { milestoneBabyPhotoSize = Math.round(v); },
       min: 12,
-      max: 70,
+      max: 100,
       onLiveUpdate: v => {
         const el = document.getElementById('milestoneBabyPhotoSizeInput');
         if (el) el.value = Math.round(v);
@@ -2764,7 +2764,7 @@ function refreshBrandingMarkers() {
       get: () => milestoneYearBabyPhotoSize,
       set: v => { milestoneYearBabyPhotoSize = Math.round(v); },
       min: 12,
-      max: 70,
+      max: 100,
       onLiveUpdate: v => {
         const el = document.getElementById('milestoneYearBabyPhotoSizeInput');
         if (el) el.value = Math.round(v);
@@ -4158,13 +4158,13 @@ let milestoneBabyPhotoSrc = null;
 let milestoneBabyPhotoImage = null;
 let milestoneBabyPhotoX = 74;
 let milestoneBabyPhotoY = 56;
-let milestoneBabyPhotoSize = 34;
+let milestoneBabyPhotoSize = 50;
 let milestoneBabyPhotoShadowStrength = 60;
 let milestoneYearBabyPhotoSrc = null;
 let milestoneYearBabyPhotoImage = null;
 let milestoneYearBabyPhotoX = 74;
 let milestoneYearBabyPhotoY = 56;
-let milestoneYearBabyPhotoSize = 34;
+let milestoneYearBabyPhotoSize = 50;
 let milestoneYearBabyPhotoShadowStrength = 60;
 
 function drawMilestoneBabyPhoto(ctx, w, h, img, xPercent, yPercent, sizePercent, shadowStrength = 60) {
