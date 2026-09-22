@@ -2040,6 +2040,12 @@ input[type=text] {
           <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">for your own listing photos only — drops a small printed-photo prop onto the blanket. drag it into place once uploaded.</p>
           <input type="file" accept="image/*" id="milestoneBabyPhotoInput">
           <button class="secondary hidden" id="milestoneBabyPhotoRemoveBtn" type="button" style="width:100%; margin-top:8px;">remove photo</button>
+          <div id="milestoneBabyPhotoSizeControls" class="hidden" style="margin-top:10px;">
+            <label>photo size</label>
+            <input id="milestoneBabyPhotoSizeInput" type="range" min="12" max="70" value="34">
+            <label style="margin-top:8px;">shadow strength</label>
+            <input id="milestoneBabyPhotoShadowInput" type="range" min="0" max="100" value="40">
+          </div>
         </div>
 
         <div id="milestoneYearControls" class="hidden" style="margin-top:14px;">
@@ -2052,6 +2058,12 @@ input[type=text] {
           <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">for your own listing photos only — drops a small printed-photo prop onto the blanket. drag it into place once uploaded.</p>
           <input type="file" accept="image/*" id="milestoneYearBabyPhotoInput">
           <button class="secondary hidden" id="milestoneYearBabyPhotoRemoveBtn" type="button" style="width:100%; margin-top:8px;">remove photo</button>
+          <div id="milestoneYearBabyPhotoSizeControls" class="hidden" style="margin-top:10px;">
+            <label>photo size</label>
+            <input id="milestoneYearBabyPhotoSizeInput" type="range" min="12" max="70" value="34">
+            <label style="margin-top:8px;">shadow strength</label>
+            <input id="milestoneYearBabyPhotoShadowInput" type="range" min="0" max="100" value="40">
+          </div>
         </div>
 
         <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
@@ -2736,7 +2748,11 @@ function refreshBrandingMarkers() {
       get: () => milestoneBabyPhotoSize,
       set: v => { milestoneBabyPhotoSize = Math.round(v); },
       min: 12,
-      max: 50
+      max: 70,
+      onLiveUpdate: v => {
+        const el = document.getElementById('milestoneBabyPhotoSizeInput');
+        if (el) el.value = Math.round(v);
+      }
     }));
   }
 
@@ -2748,7 +2764,11 @@ function refreshBrandingMarkers() {
       get: () => milestoneYearBabyPhotoSize,
       set: v => { milestoneYearBabyPhotoSize = Math.round(v); },
       min: 12,
-      max: 50
+      max: 70,
+      onLiveUpdate: v => {
+        const el = document.getElementById('milestoneYearBabyPhotoSizeInput');
+        if (el) el.value = Math.round(v);
+      }
     }));
   }
 
@@ -4138,14 +4158,16 @@ let milestoneBabyPhotoSrc = null;
 let milestoneBabyPhotoImage = null;
 let milestoneBabyPhotoX = 74;
 let milestoneBabyPhotoY = 56;
-let milestoneBabyPhotoSize = 26;
+let milestoneBabyPhotoSize = 34;
+let milestoneBabyPhotoShadowStrength = 40;
 let milestoneYearBabyPhotoSrc = null;
 let milestoneYearBabyPhotoImage = null;
 let milestoneYearBabyPhotoX = 74;
 let milestoneYearBabyPhotoY = 56;
-let milestoneYearBabyPhotoSize = 26;
+let milestoneYearBabyPhotoSize = 34;
+let milestoneYearBabyPhotoShadowStrength = 40;
 
-function drawMilestoneBabyPhoto(ctx, w, h, img, xPercent, yPercent, sizePercent) {
+function drawMilestoneBabyPhoto(ctx, w, h, img, xPercent, yPercent, sizePercent, shadowStrength = 40) {
   if (!img) return;
   const cx = w * (xPercent / 100);
   const cy = h * (yPercent / 100);
@@ -4176,12 +4198,15 @@ function drawMilestoneBabyPhoto(ctx, w, h, img, xPercent, yPercent, sizePercent)
   const shadowOffsetY = dh * 0.04;
   const shadowBlur = Math.max(2, dw * 0.05);
 
-  ctx.save();
-  ctx.globalAlpha = 0.4;
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.filter = `blur(${shadowBlur}px)`;
-  ctx.drawImage(silhouette, dx + shadowOffsetX, dy + shadowOffsetY, dw, dh);
-  ctx.restore();
+  const shadowAlpha = Math.max(0, Math.min(100, shadowStrength)) / 100;
+  if (shadowAlpha > 0) {
+    ctx.save();
+    ctx.globalAlpha = shadowAlpha;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.filter = `blur(${shadowBlur}px)`;
+    ctx.drawImage(silhouette, dx + shadowOffsetX, dy + shadowOffsetY, dw, dh);
+    ctx.restore();
+  }
 
   ctx.save();
   ctx.drawImage(img, dx, dy, dw, dh);
@@ -4489,7 +4514,7 @@ async function renderMilestoneBlanketMockupToCanvas(targetCanvas, forcedScalePer
   compositeMilestonePattern(ctx, w, h, base, mask, 'milestoneblanket', forcedScalePercent);
   drawMilestoneNumberGrid(ctx, w, h, ring);
   drawMilestoneLabel(ctx, w, h);
-  drawMilestoneBabyPhoto(ctx, w, h, milestoneBabyPhotoImage, milestoneBabyPhotoX, milestoneBabyPhotoY, milestoneBabyPhotoSize);
+  drawMilestoneBabyPhoto(ctx, w, h, milestoneBabyPhotoImage, milestoneBabyPhotoX, milestoneBabyPhotoY, milestoneBabyPhotoSize, milestoneBabyPhotoShadowStrength);
   return true;
 }
 
@@ -4503,7 +4528,7 @@ async function renderMilestoneBlanketYearMockupToCanvas(targetCanvas, forcedScal
   const ctx = targetCanvas.getContext('2d');
   compositeMilestonePattern(ctx, w, h, base, mask, 'milestoneblanketyear', forcedScalePercent);
   drawMilestoneYearMark(ctx, w, h);
-  drawMilestoneBabyPhoto(ctx, w, h, milestoneYearBabyPhotoImage, milestoneYearBabyPhotoX, milestoneYearBabyPhotoY, milestoneYearBabyPhotoSize);
+  drawMilestoneBabyPhoto(ctx, w, h, milestoneYearBabyPhotoImage, milestoneYearBabyPhotoX, milestoneYearBabyPhotoY, milestoneYearBabyPhotoSize, milestoneYearBabyPhotoShadowStrength);
   return true;
 }
 
@@ -4943,6 +4968,18 @@ function syncPreviewControlsForProduct(product) {
 
   document.getElementById('milestoneBabyPhotoRemoveBtn')?.classList.toggle('hidden', !milestoneBabyPhotoImage);
   document.getElementById('milestoneYearBabyPhotoRemoveBtn')?.classList.toggle('hidden', !milestoneYearBabyPhotoImage);
+
+  document.getElementById('milestoneBabyPhotoSizeControls')?.classList.toggle('hidden', !milestoneBabyPhotoImage);
+  const babyPhotoSizeInput = document.getElementById('milestoneBabyPhotoSizeInput');
+  if (babyPhotoSizeInput) babyPhotoSizeInput.value = milestoneBabyPhotoSize;
+  const babyPhotoShadowInput = document.getElementById('milestoneBabyPhotoShadowInput');
+  if (babyPhotoShadowInput) babyPhotoShadowInput.value = milestoneBabyPhotoShadowStrength;
+
+  document.getElementById('milestoneYearBabyPhotoSizeControls')?.classList.toggle('hidden', !milestoneYearBabyPhotoImage);
+  const yearBabyPhotoSizeInput = document.getElementById('milestoneYearBabyPhotoSizeInput');
+  if (yearBabyPhotoSizeInput) yearBabyPhotoSizeInput.value = milestoneYearBabyPhotoSize;
+  const yearBabyPhotoShadowInput = document.getElementById('milestoneYearBabyPhotoShadowInput');
+  if (yearBabyPhotoShadowInput) yearBabyPhotoShadowInput.value = milestoneYearBabyPhotoShadowStrength;
 }
 
 function populateMilestoneUnitOptions() {
@@ -5245,6 +5282,28 @@ setupMilestoneBabyPhotoControls('milestoneBabyPhotoInput', 'milestoneBabyPhotoRe
   img => { milestoneBabyPhotoImage = img; }, src => { milestoneBabyPhotoSrc = src; }, 'milestoneblanket');
 setupMilestoneBabyPhotoControls('milestoneYearBabyPhotoInput', 'milestoneYearBabyPhotoRemoveBtn',
   img => { milestoneYearBabyPhotoImage = img; }, src => { milestoneYearBabyPhotoSrc = src; }, 'milestoneblanketyear');
+
+// Direct sliders for size/shadow, alongside each marker's own drag-corner
+// handle — a slider is easier to land on precisely than a small on-canvas
+// handle, especially on a touchscreen.
+function setupMilestoneBabyPhotoSizeControls(sizeInputId, shadowInputId, product, setSize, setShadow) {
+  document.getElementById(sizeInputId)?.addEventListener('input', e => {
+    setSize(Number(e.target.value));
+    if (currentPreviewProduct === product) refreshCurrentPreviewRender();
+    renderQuickCard(product);
+    scheduleAutosave();
+  });
+  document.getElementById(shadowInputId)?.addEventListener('input', e => {
+    setShadow(Number(e.target.value));
+    if (currentPreviewProduct === product) refreshCurrentPreviewRender();
+    renderQuickCard(product);
+    scheduleAutosave();
+  });
+}
+setupMilestoneBabyPhotoSizeControls('milestoneBabyPhotoSizeInput', 'milestoneBabyPhotoShadowInput', 'milestoneblanket',
+  v => { milestoneBabyPhotoSize = v; }, v => { milestoneBabyPhotoShadowStrength = v; });
+setupMilestoneBabyPhotoSizeControls('milestoneYearBabyPhotoSizeInput', 'milestoneYearBabyPhotoShadowInput', 'milestoneblanketyear',
+  v => { milestoneYearBabyPhotoSize = v; }, v => { milestoneYearBabyPhotoShadowStrength = v; });
 
 const collectionTray = document.getElementById('collectionTray');
 let trayPatterns = [];
@@ -7297,10 +7356,12 @@ function serializeProject() {
     milestoneBabyPhotoX,
     milestoneBabyPhotoY,
     milestoneBabyPhotoSize,
+    milestoneBabyPhotoShadowStrength,
     milestoneYearBabyPhotoSrc,
     milestoneYearBabyPhotoX,
     milestoneYearBabyPhotoY,
     milestoneYearBabyPhotoSize,
+    milestoneYearBabyPhotoShadowStrength,
 
     productOverrides: Object.fromEntries(
       Object.entries(productOverrides).map(([product, o]) => [product, {
@@ -7436,9 +7497,11 @@ async function restoreProject(data) {
   if (data.milestoneBabyPhotoX != null) milestoneBabyPhotoX = data.milestoneBabyPhotoX;
   if (data.milestoneBabyPhotoY != null) milestoneBabyPhotoY = data.milestoneBabyPhotoY;
   if (data.milestoneBabyPhotoSize != null) milestoneBabyPhotoSize = data.milestoneBabyPhotoSize;
+  if (data.milestoneBabyPhotoShadowStrength != null) milestoneBabyPhotoShadowStrength = data.milestoneBabyPhotoShadowStrength;
   if (data.milestoneYearBabyPhotoX != null) milestoneYearBabyPhotoX = data.milestoneYearBabyPhotoX;
   if (data.milestoneYearBabyPhotoY != null) milestoneYearBabyPhotoY = data.milestoneYearBabyPhotoY;
   if (data.milestoneYearBabyPhotoSize != null) milestoneYearBabyPhotoSize = data.milestoneYearBabyPhotoSize;
+  if (data.milestoneYearBabyPhotoShadowStrength != null) milestoneYearBabyPhotoShadowStrength = data.milestoneYearBabyPhotoShadowStrength;
 
   const overrideLoads = [];
   if (data.milestoneBabyPhotoSrc) {
