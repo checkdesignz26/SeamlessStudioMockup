@@ -2031,7 +2031,7 @@ input[type=text] {
           </div>
           <label>milestone <span id="milestoneUnitLabel">month</span></label>
           <select id="milestoneMonthSelect"></select>
-          <p style="color:var(--muted); font-size:12px; margin:8px 0 14px;">📍 the number grid is drawn onto the blanket automatically — drag it (and its corner handle) into place on your photo from here, once. switching units keeps its position. picking the last month or week swaps it for a "1 · year" design instead.</p>
+          <p style="color:var(--muted); font-size:12px; margin:8px 0 14px;">📍 the number grid and the "months"/"weeks" label are drawn onto the blanket automatically as two separate markers — drag each (and its corner handle) into place on your photo from here, once. switching units keeps their position. picking the last month or week swaps the numbers for a "1 · year" design instead — the label reads "month"/"week" automatically when you're on the first one.</p>
           <label>lettering colour</label>
           <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">match it to your pattern, like the swimsuit lining colour.</p>
           <input type="color" id="milestoneTextColorInput" value="#3c4a3d">
@@ -2703,6 +2703,15 @@ function refreshBrandingMarkers() {
       get: () => milestoneRingSize,
       set: v => { milestoneRingSize = Math.round(v); },
       min: 15,
+      max: 70
+    }));
+    brandingMarkerLayer.appendChild(createBrandingMarker('label', milestoneLabelX, milestoneLabelY, (x, y) => {
+      milestoneLabelX = x;
+      milestoneLabelY = y;
+    }, {
+      get: () => milestoneLabelSize,
+      set: v => { milestoneLabelSize = Math.round(v); },
+      min: 10,
       max: 70
     }));
   }
@@ -4107,6 +4116,13 @@ let milestoneRingY = 54;
 let milestoneRingSize = 34;
 let milestoneSelectedMonth = 1;
 let milestoneSelectedWeek = 1;
+// The "MONTHS"/"WEEKS" label is its own independently draggable/resizable
+// layer, separate from the number grid, so a seller can move it out of
+// the way (or drop a photo where it used to sit) without touching the
+// numbers — same split as the milestone blanket template's own files.
+let milestoneLabelX = 67;
+let milestoneLabelY = 54;
+let milestoneLabelSize = 36;
 let milestoneYearX = 50;
 let milestoneYearY = 54;
 let milestoneYearSize = 40;
@@ -4371,15 +4387,13 @@ function drawMilestoneNumberGrid(ctx, w, h, ringImg) {
   const fontSize0 = Math.max(11, footprint * 0.4);
   const colGapK = 1.8;
   const rowGapK = 1.45;
-  const labelFontK = 1.05;
   const ringK = 2.15;
   const cx = w * (milestoneRingX / 100);
   const cy = h * (milestoneRingY / 100);
 
-  // Fit the grid itself first — numbers only, ignoring the label — so the
-  // resize handle stays responsive. The label is fit separately below,
-  // shrinking (or hiding) on its own if it doesn't have room, instead of
-  // dragging the whole grid down to make space for it.
+  // The label used to be fit-and-drawn right here, sharing this position —
+  // it's now its own independently draggable layer (drawMilestoneLabel)
+  // with its own state, so this only ever has to fit the numbers.
   const gridHalfK = colGapK * (cols - 1) / 2 + 1.1;
   const topHalfK = rowGapK * (rows - 1) / 2 + 1.1;
   const fontSize = fitMilestoneFontSize(cx, cy, w, h, fontSize0, gridHalfK, gridHalfK, topHalfK, topHalfK);
@@ -4400,28 +4414,6 @@ function drawMilestoneNumberGrid(ctx, w, h, ringImg) {
     const { x, y } = cellCenter(n);
     drawMilestoneText(ctx, String(n), x, y, fontSize, 'center');
   }
-
-  const labelX = cx + colGap * ((cols - 1) / 2 + 1.15);
-  const label = weeks ? 'WEEKS' : 'MONTHS';
-  const margin = Math.min(w, h) * 0.02;
-  const availableForLabel = (w - margin) - labelX;
-  let labelFontSize = fontSize * labelFontK;
-  let labelWidth = measureMilestoneLabelWidth(ctx, label, labelFontSize, labelFontSize * 0.05);
-  if (labelWidth > availableForLabel) {
-    labelFontSize *= Math.max(0, availableForLabel / labelWidth);
-  }
-  // below a certain size the label stops reading as a word — skip it
-  // rather than draw an unreadably tiny "MONTHS" jammed into a corner.
-  if (labelFontSize > fontSize * 0.35) {
-    const letterSpacing = labelFontSize * 0.05;
-    ctx.font = `700 ${Math.round(labelFontSize)}px ${MILESTONE_FONT}`;
-    let lx = labelX;
-    for (const ch of label) {
-      drawMilestoneText(ctx, ch, lx, cy, labelFontSize, 'left');
-      ctx.font = `700 ${Math.round(labelFontSize)}px ${MILESTONE_FONT}`;
-      lx += ctx.measureText(ch).width + letterSpacing;
-    }
-  }
   ctx.restore();
 
   if (ringImg) {
@@ -4432,6 +4424,43 @@ function drawMilestoneNumberGrid(ctx, w, h, ringImg) {
     const dh = ringDiameter * ringAspect;
     ctx.drawImage(ringImg, selectedCenter.x - dw / 2, selectedCenter.y - dh / 2, dw, dh);
   }
+}
+
+// Independent from the number grid — its own position/size, and its own
+// wording: proper singular ("MONTH"/"WEEK") when the selected count is 1,
+// plural otherwise. Not drawn at all for the "1 · year" design, which has
+// its own "YEAR" text baked into drawMilestoneYearMark.
+function drawMilestoneLabel(ctx, w, h) {
+  if (isMilestoneAtYearMark()) return;
+
+  const weeks = milestoneUnit === 'weeks';
+  const selected = weeks ? milestoneSelectedWeek : milestoneSelectedMonth;
+  const singular = selected === 1;
+  const label = weeks ? (singular ? 'WEEK' : 'WEEKS') : (singular ? 'MONTH' : 'MONTHS');
+
+  const scale = milestoneLabelSize / 100;
+  const footprint = Math.min(w, h) * scale;
+  const fontSize0 = Math.max(11, footprint * 0.42);
+  const cx = w * (milestoneLabelX / 100);
+  const cy = h * (milestoneLabelY / 100);
+  const margin = Math.min(w, h) * 0.02;
+
+  const labelWidth0 = measureMilestoneLabelWidth(ctx, label, fontSize0, fontSize0 * 0.05);
+  const rightK = Math.max(0.1, labelWidth0 / fontSize0);
+  const fontSize = fitMilestoneFontSize(cx, cy, w, h, fontSize0, 0.1, rightK, 0.6, 0.6);
+
+  // below a certain size the label stops reading as a word — skip it
+  // rather than draw an unreadably tiny "MONTHS" jammed into a corner.
+  if (fontSize <= fontSize0 * 0.35) return;
+
+  ctx.save();
+  const letterSpacing = fontSize * 0.05;
+  let lx = cx;
+  for (const ch of label) {
+    drawMilestoneText(ctx, ch, lx, cy, fontSize, 'left');
+    lx += ctx.measureText(ch).width + letterSpacing;
+  }
+  ctx.restore();
 }
 
 function drawMilestoneYearMark(ctx, w, h) {
@@ -4474,6 +4503,7 @@ async function renderMilestoneBlanketMockupToCanvas(targetCanvas, forcedScalePer
   const ctx = targetCanvas.getContext('2d');
   compositeMilestonePattern(ctx, w, h, base, mask, 'milestoneblanket', forcedScalePercent);
   drawMilestoneNumberGrid(ctx, w, h, ring);
+  drawMilestoneLabel(ctx, w, h);
   drawMilestoneBabyPhoto(ctx, w, h, milestoneBabyPhotoImage, milestoneBabyPhotoX, milestoneBabyPhotoY, milestoneBabyPhotoSize);
   return true;
 }
@@ -7271,6 +7301,9 @@ function serializeProject() {
     milestoneRingX,
     milestoneRingY,
     milestoneRingSize,
+    milestoneLabelX,
+    milestoneLabelY,
+    milestoneLabelSize,
     milestoneYearX,
     milestoneYearY,
     milestoneYearSize,
@@ -7408,6 +7441,9 @@ async function restoreProject(data) {
   if (data.milestoneRingX != null) milestoneRingX = data.milestoneRingX;
   if (data.milestoneRingY != null) milestoneRingY = data.milestoneRingY;
   if (data.milestoneRingSize != null) milestoneRingSize = data.milestoneRingSize;
+  if (data.milestoneLabelX != null) milestoneLabelX = data.milestoneLabelX;
+  if (data.milestoneLabelY != null) milestoneLabelY = data.milestoneLabelY;
+  if (data.milestoneLabelSize != null) milestoneLabelSize = data.milestoneLabelSize;
   if (data.milestoneYearX != null) milestoneYearX = data.milestoneYearX;
   if (data.milestoneYearY != null) milestoneYearY = data.milestoneYearY;
   if (data.milestoneYearSize != null) milestoneYearSize = data.milestoneYearSize;
