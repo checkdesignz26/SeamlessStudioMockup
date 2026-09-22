@@ -2030,11 +2030,17 @@ input[type=text] {
           </div>
           <label>milestone <span id="milestoneUnitLabel">month</span></label>
           <select id="milestoneMonthSelect"></select>
-          <p style="color:var(--muted); font-size:12px; margin:8px 0 0;">📍 the number grid is drawn onto the blanket automatically — drag it (and its corner handle) into place on your photo from here, once. switching units keeps its position.</p>
+          <p style="color:var(--muted); font-size:12px; margin:8px 0 14px;">📍 the number grid is drawn onto the blanket automatically — drag it (and its corner handle) into place on your photo from here, once. switching units keeps its position. picking the last month or week swaps it for a "1 · year" design instead.</p>
+          <label>lettering colour</label>
+          <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">match it to your pattern, like the swimsuit lining colour.</p>
+          <input type="color" id="milestoneTextColorInput" value="#3c4a3d">
         </div>
 
         <div id="milestoneYearControls" class="hidden" style="margin-top:14px;">
-          <p style="color:var(--muted); font-size:12px; margin:0;">📍 the "1 · YEAR" mark is drawn onto the blanket automatically — drag it (and its corner handle) into place on your photo from here, once.</p>
+          <p style="color:var(--muted); font-size:12px; margin:0 0 14px;">📍 the "1 · YEAR" mark is drawn onto the blanket automatically — drag it (and its corner handle) into place on your photo from here, once.</p>
+          <label>lettering colour</label>
+          <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">match it to your pattern, like the swimsuit lining colour.</p>
+          <input type="color" id="milestoneYearTextColorInput" value="#3c4a3d">
         </div>
 
         <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
@@ -2668,7 +2674,17 @@ function refreshBrandingMarkers() {
     }));
   });
 
-  if (product === 'milestoneblanket') {
+  if (product === 'milestoneblanket' && isMilestoneAtYearMark()) {
+    brandingMarkerLayer.appendChild(createBrandingMarker('1 · year mark', milestoneYearX, milestoneYearY, (x, y) => {
+      milestoneYearX = x;
+      milestoneYearY = y;
+    }, {
+      get: () => milestoneYearSize,
+      set: v => { milestoneYearSize = Math.round(v); },
+      min: 15,
+      max: 70
+    }));
+  } else if (product === 'milestoneblanket') {
     brandingMarkerLayer.appendChild(createBrandingMarker('number grid', milestoneRingX, milestoneRingY, (x, y) => {
       milestoneRingX = x;
       milestoneRingY = y;
@@ -4059,6 +4075,7 @@ let milestoneSelectedWeek = 1;
 let milestoneYearX = 50;
 let milestoneYearY = 54;
 let milestoneYearSize = 40;
+let milestoneTextColor = '#3c4a3d';
 
 async function loadMilestoneBlanketAssets() {
   if (!milestoneBlanketBaseImage) {
@@ -4079,13 +4096,34 @@ async function loadMilestoneBlanketAssets() {
       './mockups/MilestoneRingToy.png'
     ], 'milestone ring toy');
   }
-  // Canvas text doesn't wait for webfonts the way DOM text does — drawing
-  // before Caveat finishes loading silently bakes in the fallback font
-  // instead, so make sure it's actually ready first.
-  if (document.fonts && document.fonts.load) {
-    try { await document.fonts.load("700 100px 'Caveat'"); } catch (err) { /* falls back gracefully */ }
-  }
+  await ensureMilestoneFontReady();
   return { base: milestoneBlanketBaseImage, mask: milestoneBlanketMaskImage, ring: milestoneRingToyImage };
+}
+
+// Canvas text doesn't wait for webfonts the way DOM text does — drawing
+// before Caveat finishes loading silently bakes in the fallback font
+// instead. document.fonts.load() resolving isn't always enough on its own
+// (some browsers report a webfont "ready" slightly before their canvas
+// rasterizer actually picks it up on the very first draw, so that first
+// render can still come out in a fallback font/size until something
+// triggers a second draw) — priming a throwaway canvas draw with the font
+// first, after the load promise resolves, avoids that first-paint gap.
+let milestoneFontWarmed = false;
+async function ensureMilestoneFontReady() {
+  if (milestoneFontWarmed) return;
+  if (document.fonts && document.fonts.load) {
+    try {
+      await document.fonts.load("700 100px 'Caveat'");
+      if (document.fonts.ready) await document.fonts.ready;
+    } catch (err) { /* falls back gracefully */ }
+  }
+  try {
+    const warm = document.createElement('canvas').getContext('2d');
+    warm.font = "700 40px 'Caveat', cursive";
+    warm.fillText('0123456789', 0, 20);
+  } catch (err) { /* best-effort warmup only */ }
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  milestoneFontWarmed = true;
 }
 
 // Shared by both milestone blanket variants (numbered grid + 1-year) since
@@ -4149,7 +4187,7 @@ function drawMilestoneText(ctx, text, x, y, fontSize, align) {
   ctx.font = `700 ${Math.round(fontSize)}px ${MILESTONE_FONT}`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = '#3c4a3d';
+  ctx.fillStyle = milestoneTextColor;
   ctx.shadowColor = 'rgba(0,0,0,0.35)';
   ctx.shadowBlur = fontSize * 0.09;
   ctx.shadowOffsetX = fontSize * 0.02;
@@ -4193,7 +4231,21 @@ function fitMilestoneFontSize(cx, cy, w, h, fontSize0, leftK, rightK, topK, bott
   return Math.max(11, Math.min(fontSize0, cap));
 }
 
+// True for the 'milestoneblanket' product when its current selection is
+// the last month/week — that's when it swaps the grid for the "1 · year"
+// design instead, same as a real gallery's final milestone photo.
+function isMilestoneAtYearMark() {
+  const weeks = milestoneUnit === 'weeks';
+  const selected = weeks ? milestoneSelectedWeek : milestoneSelectedMonth;
+  return selected === (weeks ? 52 : 12);
+}
+
 function drawMilestoneNumberGrid(ctx, w, h, ringImg) {
+  if (isMilestoneAtYearMark()) {
+    drawMilestoneYearMark(ctx, w, h);
+    return;
+  }
+
   const weeks = milestoneUnit === 'weeks';
   const cols = weeks ? 13 : 3;
   const rows = 4;
@@ -4754,6 +4806,11 @@ function syncPreviewControlsForProduct(product) {
   populateMilestoneUnitOptions();
   const monthSelect = document.getElementById('milestoneMonthSelect');
   if (monthSelect) monthSelect.value = String(milestoneUnit === 'weeks' ? milestoneSelectedWeek : milestoneSelectedMonth);
+
+  const textColorInput = document.getElementById('milestoneTextColorInput');
+  if (textColorInput) textColorInput.value = milestoneTextColor;
+  const yearTextColorInput = document.getElementById('milestoneYearTextColorInput');
+  if (yearTextColorInput) yearTextColorInput.value = milestoneTextColor;
 }
 
 function populateMilestoneUnitOptions() {
@@ -4990,6 +5047,29 @@ document.querySelectorAll('.milestone-unit-btn').forEach(btn => {
     }
   });
 });
+
+// One shared colour drives the lettering on both milestone blanket
+// products — two inputs (one per controls panel) just so it's visible
+// whichever one is open, kept in sync with each other here.
+let milestoneTextColorDebounceTimer = null;
+function setMilestoneTextColor(hex) {
+  milestoneTextColor = hex;
+  const a = document.getElementById('milestoneTextColorInput');
+  const b = document.getElementById('milestoneYearTextColorInput');
+  if (a) a.value = hex;
+  if (b) b.value = hex;
+  clearTimeout(milestoneTextColorDebounceTimer);
+  milestoneTextColorDebounceTimer = setTimeout(() => {
+    if (currentPreviewProduct === 'milestoneblanket' || currentPreviewProduct === 'milestoneblanketyear') {
+      refreshCurrentPreviewRender();
+    }
+    renderQuickCard('milestoneblanket');
+    renderQuickCard('milestoneblanketyear');
+    scheduleAutosave();
+  }, 150);
+}
+document.getElementById('milestoneTextColorInput')?.addEventListener('input', e => setMilestoneTextColor(e.target.value));
+document.getElementById('milestoneYearTextColorInput')?.addEventListener('input', e => setMilestoneTextColor(e.target.value));
 
 const collectionTray = document.getElementById('collectionTray');
 let trayPatterns = [];
@@ -7034,6 +7114,7 @@ function serializeProject() {
     milestoneYearX,
     milestoneYearY,
     milestoneYearSize,
+    milestoneTextColor,
 
     productOverrides: Object.fromEntries(
       Object.entries(productOverrides).map(([product, o]) => [product, {
@@ -7162,6 +7243,7 @@ async function restoreProject(data) {
   if (data.milestoneYearX != null) milestoneYearX = data.milestoneYearX;
   if (data.milestoneYearY != null) milestoneYearY = data.milestoneYearY;
   if (data.milestoneYearSize != null) milestoneYearSize = data.milestoneYearSize;
+  if (data.milestoneTextColor != null) milestoneTextColor = data.milestoneTextColor;
 
   const overrideLoads = [];
   Object.entries(data.productOverrides || {}).forEach(([product, o]) => {
