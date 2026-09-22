@@ -2200,10 +2200,13 @@ const brandingState = {
   logoOpacity: 90,
   badges: [
     { id: 1, name: 'digital download', enabled: true, mode: 'text', text: 'DIGITAL DOWNLOAD · INSTANT FILE', image: null, imageSrc: '', x: 50, y: 92, size: 22, opacity: 100 },
-    { id: 2, name: 'sale', enabled: true, mode: 'text', text: 'ON SALE', image: null, imageSrc: '', x: 14, y: 10, size: 22, opacity: 100 }
+    { id: 2, name: 'sale', enabled: true, mode: 'text', text: 'ON SALE', image: null, imageSrc: '', x: 14, y: 10, size: 22, opacity: 100 },
+    // Seasonal, so off by default — the other two are evergreen and stay on
+    // every mock-up, but a Mother's Day ribbon shouldn't show up in July.
+    { id: 3, name: "mother's day", enabled: false, mode: 'text', text: "MOTHER'S DAY", image: null, imageSrc: '', x: 86, y: 10, size: 22, opacity: 100 }
   ]
 };
-let badgeIdCounter = 2;
+let badgeIdCounter = 3;
 
 const brandingLogoInput = document.getElementById('brandingLogoInput');
 const brandingLogoPreview = document.getElementById('brandingLogoPreview');
