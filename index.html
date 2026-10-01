@@ -1749,6 +1749,21 @@ input[type=text] {
             </div>
           </article>
 
+          <article class="mock-card" data-product="bookmark" data-category="stationery">
+            <button class="select-bubble" type="button" aria-label="select bookmark">✓</button>
+            <div class="card-preview">
+              <canvas id="bookmarkQuickCanvas" class="quick-canvas hidden"></canvas>
+              <div class="placeholder-art" id="bookmarkPlaceholder"><span class="big">🔖</span>bookmark preview</div>
+            </div>
+            <div class="card-footer">
+              <div>
+                <h3>bookmark mock-up</h3>
+                <small>stationery &amp; desk · tassel colour is adjustable</small>
+              </div>
+              <button class="secondary preview-btn" data-kind="quick" data-name="bookmark mock-up" type="button">preview</button>
+            </div>
+          </article>
+
           <article class="mock-card" data-product="kitchentowel" data-category="home">
             <button class="select-bubble" type="button" aria-label="select kitchen towel">✓</button>
             <div class="card-preview">
@@ -2021,6 +2036,12 @@ input[type=text] {
           <label>inside lining colour</label>
           <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">the strap and leg-opening linings are a solid colour in real life — pick whatever coordinates with your pattern.</p>
           <input type="color" id="swimsuitLiningColorInput" value="#ffffff">
+        </div>
+
+        <div id="bookmarkTasselControls" class="hidden" style="margin-top:14px;">
+          <label>tassel colour</label>
+          <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">the tassel cord is a solid colour in real life — pick whatever coordinates with your pattern.</p>
+          <input type="color" id="bookmarkTasselColorInput" value="#ffffff">
         </div>
 
         <div id="milestoneBlanketControls" class="hidden" style="margin-top:14px;">
@@ -2942,7 +2963,7 @@ function refreshCurrentPreviewRender() {
   }
 }
 
-const ALL_QUICK_PRODUCTS = ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','kitchentowel','buckethat','beachtowel','bikiniset','swimsuit','milestoneblanket','milestoneblanketyear'];
+const ALL_QUICK_PRODUCTS = ['mug','notebook','tumbler','floorcushion','applepencil','greetingcard','bookmark','kitchentowel','buckethat','beachtowel','bikiniset','swimsuit','milestoneblanket','milestoneblanketyear'];
 
 function yieldToBrowser() {
   return new Promise(resolve => setTimeout(resolve, 0));
@@ -4776,6 +4797,103 @@ async function renderBikiniSetMockupToCanvas(targetCanvas, forcedScalePercent = 
   return true;
 }
 
+let bookmarkBaseImage = null;
+let bookmarkPatternMaskImage = null;
+let bookmarkTasselMaskImage = null;
+let bookmarkTasselColor = '#ffffff';
+
+async function loadBookmarkAssets() {
+  if (!bookmarkBaseImage) {
+    bookmarkBaseImage = await loadAssetImageFromCandidates([
+      './BookmarkMockup.jpg',
+      './mockups/BookmarkMockup.jpg'
+    ], 'bookmark base');
+  }
+  if (!bookmarkPatternMaskImage) {
+    bookmarkPatternMaskImage = await loadAssetImageFromCandidates([
+      './BookmarkPatternMask.png',
+      './mockups/BookmarkPatternMask.png'
+    ], 'bookmark pattern mask');
+  }
+  if (!bookmarkTasselMaskImage) {
+    bookmarkTasselMaskImage = await loadAssetImageFromCandidates([
+      './BookmarkTasselMask.png',
+      './mockups/BookmarkTasselMask.png'
+    ], 'bookmark tassel mask');
+  }
+  return { base: bookmarkBaseImage, patternMask: bookmarkPatternMaskImage, tasselMask: bookmarkTasselMaskImage };
+}
+
+async function renderBookmarkMockupToCanvas(targetCanvas, forcedScalePercent = null) {
+  const patternImg = getEffectivePatternForProduct('bookmark');
+
+  const { base, patternMask, tasselMask } = await loadBookmarkAssets();
+  const w = base.naturalWidth || base.width;
+  const h = base.naturalHeight || base.height;
+
+  targetCanvas.width = w;
+  targetCanvas.height = h;
+  const ctx = targetCanvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(base, 0, 0, w, h);
+
+  // the tassel cord is a solid colour in real life, not a print
+  const tasselLayer = document.createElement('canvas');
+  tasselLayer.width = w;
+  tasselLayer.height = h;
+  const tctx = tasselLayer.getContext('2d');
+  tctx.fillStyle = bookmarkTasselColor;
+  tctx.fillRect(0, 0, w, h);
+  tctx.globalCompositeOperation = 'destination-in';
+  tctx.drawImage(tasselMask, 0, 0, w, h);
+  tctx.globalCompositeOperation = 'source-over';
+
+  ctx.save();
+  ctx.globalAlpha = 0.88;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(tasselLayer, 0, 0);
+  ctx.restore();
+
+  // the bookmark face shows the uploaded seamless pattern
+  if (patternImg) {
+    const scalePercent = forcedScalePercent || getEffectiveScaleForProduct('bookmark');
+    const tile = createPatternTileCanvas(patternImg, scalePercent);
+    const offset = getEffectiveOffsetForProduct('bookmark');
+
+    const patternLayer = document.createElement('canvas');
+    patternLayer.width = w;
+    patternLayer.height = h;
+    const pctx = patternLayer.getContext('2d');
+    pctx.imageSmoothingEnabled = true;
+    pctx.imageSmoothingQuality = 'high';
+    drawRepeatedTileLayer(pctx, tile, w, h, offset.x / 100 * tile.width, offset.y / 100 * tile.height);
+
+    pctx.globalCompositeOperation = 'destination-in';
+    pctx.drawImage(patternMask, 0, 0, w, h);
+    pctx.globalCompositeOperation = 'source-over';
+
+    boostPatternLayerContrast(patternLayer, 1.10, 1.05);
+
+    ctx.save();
+    ctx.globalAlpha = 0.90;
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(patternLayer, 0, 0);
+    ctx.restore();
+  }
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  return true;
+}
+
 let swimsuitBaseImage = null;
 let swimsuitPatternMaskImage = null;
 let swimsuitLiningTopLeftImage = null;
@@ -4915,6 +5033,7 @@ async function renderProductToCanvas(product, targetCanvas) {
   if (product === 'floorcushion') return renderFloorCushionMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'greetingcard') return renderGreetingCardMockupToCanvas(targetCanvas, greetingCardMode, window.__currentProductScale);
   if (product === 'applepencil') return renderApplePencilMockupToCanvas(targetCanvas, window.__currentProductScale);
+  if (product === 'bookmark') return renderBookmarkMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'kitchentowel') return renderKitchenTowelMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'buckethat') return renderBucketHatMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'beachtowel') return renderBeachTowelMockupToCanvas(targetCanvas, window.__currentProductScale);
@@ -5603,6 +5722,16 @@ document.getElementById('downloadQuickBtn').addEventListener('click', async () =
     }
   }
 
+  if (selected.includes('bookmark')) {
+    const bookmarkCanvas = document.getElementById('bookmarkQuickCanvas');
+    if (getEffectivePatternForProduct('bookmark') && bookmarkCanvas) {
+      if (bookmarkCanvas.classList.contains('hidden')) await renderQuickCard('bookmark');
+      downloadCanvasPNG(bookmarkCanvas, 'bookmark_mockup.png');
+    } else if (bookmarkCanvas) {
+      showToastMessage('upload a pattern for bookmark first');
+    }
+  }
+
   if (selected.includes('kitchentowel')) {
     const towelCanvas = document.getElementById('kitchentowelQuickCanvas');
     if (getEffectivePatternForProduct('kitchentowel') && towelCanvas) {
@@ -5673,9 +5802,9 @@ document.getElementById('downloadQuickBtn').addEventListener('click', async () =
     }
   }
 
-  const notReady = selected.filter(p => p !== 'mug' && p !== 'greetingcard' && p !== 'kitchentowel' && p !== 'buckethat' && p !== 'beachtowel' && p !== 'bikiniset' && p !== 'swimsuit' && p !== 'milestoneblanket' && p !== 'milestoneblanketyear');
+  const notReady = selected.filter(p => p !== 'mug' && p !== 'greetingcard' && p !== 'bookmark' && p !== 'kitchentowel' && p !== 'buckethat' && p !== 'beachtowel' && p !== 'bikiniset' && p !== 'swimsuit' && p !== 'milestoneblanket' && p !== 'milestoneblanketyear');
   if (notReady.length) {
-    alert('Mug, greeting card, kitchen towel, bucket hat, beach towel, bikini set, swimsuit and milestone blanket (both variants) download now. ' + notReady.join(', ') + ' engines are still placeholders.');
+    alert('Mug, greeting card, bookmark, kitchen towel, bucket hat, beach towel, bikini set, swimsuit and milestone blanket (both variants) download now. ' + notReady.join(', ') + ' engines are still placeholders.');
   }
 });
 
@@ -7087,6 +7216,7 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
       document.getElementById('greetingCardModeControls')?.classList.add('hidden');
       document.getElementById('bikiniLiningControls')?.classList.add('hidden');
       document.getElementById('swimsuitLiningControls')?.classList.add('hidden');
+      document.getElementById('bookmarkTasselControls')?.classList.add('hidden');
     }
 
     previewIcon.textContent = creative ? '✿' : '✨';
@@ -7100,13 +7230,14 @@ document.querySelectorAll('.preview-btn').forEach(btn => {
     if (previewPlaceholder) previewPlaceholder.classList.remove('hidden');
 
     if (!creative) {
-      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : name.includes('greeting card') ? 'greetingcard' : name.includes('kitchen towel') ? 'kitchentowel' : name.includes('bucket hat') ? 'buckethat' : name.includes('beach towel') ? 'beachtowel' : name.includes('bikini set') ? 'bikiniset' : name.includes('swimsuit') ? 'swimsuit' : name.includes('milestone blanket - 1 year') ? 'milestoneblanketyear' : name.includes('milestone blanket') ? 'milestoneblanket' : '';
+      const product = name.includes('mug') ? 'mug' : name.includes('notebook') ? 'notebook' : name.includes('tumbler') ? 'tumbler' : name.includes('floor cushion') ? 'floorcushion' : name.includes('apple pencil') ? 'applepencil' : name.includes('greeting card') ? 'greetingcard' : name.includes('bookmark') ? 'bookmark' : name.includes('kitchen towel') ? 'kitchentowel' : name.includes('bucket hat') ? 'buckethat' : name.includes('beach towel') ? 'beachtowel' : name.includes('bikini set') ? 'bikiniset' : name.includes('swimsuit') ? 'swimsuit' : name.includes('milestone blanket - 1 year') ? 'milestoneblanketyear' : name.includes('milestone blanket') ? 'milestoneblanket' : '';
       currentPreviewProduct = product;
       currentPreviewScene = '';
       document.getElementById('notebookSideControls')?.classList.toggle('hidden', product !== 'notebook');
       document.getElementById('greetingCardModeControls')?.classList.toggle('hidden', product !== 'greetingcard');
       document.getElementById('bikiniLiningControls')?.classList.toggle('hidden', product !== 'bikiniset');
       document.getElementById('swimsuitLiningControls')?.classList.toggle('hidden', product !== 'swimsuit');
+      document.getElementById('bookmarkTasselControls')?.classList.toggle('hidden', product !== 'bookmark');
       document.getElementById('milestoneBlanketControls')?.classList.toggle('hidden', product !== 'milestoneblanket');
       document.getElementById('milestoneYearControls')?.classList.toggle('hidden', product !== 'milestoneblanketyear');
       if (product) openProductPreview(product);
@@ -7189,6 +7320,18 @@ document.getElementById('swimsuitLiningColorInput')?.addEventListener('input', e
     if (currentPreviewProduct === 'swimsuit') {
       openProductPreview('swimsuit');
       renderQuickCard('swimsuit');
+    }
+  }, 150);
+});
+
+let bookmarkTasselDebounceTimer = null;
+document.getElementById('bookmarkTasselColorInput')?.addEventListener('input', e => {
+  bookmarkTasselColor = e.target.value;
+  clearTimeout(bookmarkTasselDebounceTimer);
+  bookmarkTasselDebounceTimer = setTimeout(() => {
+    if (currentPreviewProduct === 'bookmark') {
+      openProductPreview('bookmark');
+      renderQuickCard('bookmark');
     }
   }, 150);
 });
