@@ -3914,7 +3914,7 @@ async function renderFloorCushionMockupToCanvas(targetCanvas, forcedScalePercent
     ],
 
     // soft fabric tuning
-    patternBlend: 'multiply',
+    patternBlend: 'overlay',
     patternAlpha: 0.92,
     normalAlpha: 0.24,
     contrast: 1.08,
@@ -4100,7 +4100,7 @@ async function renderKitchenTowelMockupToCanvas(targetCanvas, forcedScalePercent
     // soft fabric tuning, matching the floor cushion feel
     ctx.save();
     ctx.globalAlpha = 0.90;
-    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalCompositeOperation = 'overlay';
     ctx.drawImage(patternLayer, 0, 0);
     ctx.restore();
 
