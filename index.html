@@ -5445,6 +5445,7 @@ function setMainQuickPattern(src, name) {
       if (card) card.classList.add('hidden');
       renderAllPatternSwatchRows();
       renderQuickCardsSequentially(ALL_QUICK_PRODUCTS);
+      if (typeof mmRefreshPatternPreview === 'function') mmRefreshPatternPreview();
       resolve();
     };
     quickPatternImage.onerror = resolve;
@@ -8541,6 +8542,7 @@ document.getElementById('myMockupsReplacePatternBtn')?.addEventListener('click',
   document.getElementById('quickUploadStrip')?.classList.add('hidden');
   document.getElementById('quickUploadCard')?.classList.remove('hidden');
   syncMyMockupsPatternBar();
+  if (typeof mmRefreshPatternPreview === 'function') mmRefreshPatternPreview();
 });
 </script>
 
@@ -8818,6 +8820,7 @@ function mmCreateLockedMaskItem({ src, mode, blendMode, itemId }) {
   item.dataset.shape = 'custom';
   item.dataset.mode = mode || ARTWORK_MODE_REPEAT;
   item.dataset.blend = blendMode || '';
+  item.dataset.maskSrc = src || '';
   // Same offsetWidth/Height caveat as mmCreateBackgroundItem — read the
   // explicit inline style instead, since this can run while the composer
   // overlay is still hidden during restore.
@@ -8825,7 +8828,84 @@ function mmCreateLockedMaskItem({ src, mode, blendMode, itemId }) {
   item.style.cssText = `position:absolute; left:0px; top:0px; width:${w}px; height:${h}px; background:url("${src || ''}") center / 100% 100% no-repeat; opacity:0.55; cursor:pointer; z-index:5;`;
   item.addEventListener('click', () => mmSelectItem(item));
   page.appendChild(item);
+  mmRefreshPatternPreview();
   return item;
+}
+
+// Auto-renders the currently selected pattern (or single artwork) through
+// the uploaded mask, live in the composer, so the user sees the real result
+// the moment both a photo and a matching mask exist — not just later in the
+// separate "Use Mock-up" preview. Mirrors the real render pipeline
+// (buildPatternSlotMaskCanvas + renderArtworkIntoMaskedRegion) at 1:1 scale
+// with no custom placement yet (that's what the Use Mock-up sliders are for).
+function mmLoadImage(src) {
+  return new Promise(resolve => {
+    if (!src) { resolve(null); return; }
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+async function mmRefreshPatternPreview() {
+  const page = mmActivePage();
+  if (!page) return;
+  const slotItem = page.querySelector('.mm-item[data-type="patternSlot"]');
+  const previewCanvas = page.querySelector('#mmPatternPreviewCanvas');
+
+  if (!slotItem) {
+    if (previewCanvas) previewCanvas.remove();
+    return;
+  }
+
+  const w = parseFloat(page.style.width) || 0;
+  const h = parseFloat(page.style.height) || 0;
+  const maskSrc = slotItem.dataset.maskSrc || '';
+  const mode = slotItem.dataset.mode || ARTWORK_MODE_REPEAT;
+  const blendMode = slotItem.dataset.blend || '';
+  const patternImg = (mode !== ARTWORK_MODE_SINGLE && quickPatternImage && quickPatternImage.complete) ? quickPatternImage : null;
+
+  if (!w || !h || !maskSrc || !patternImg) {
+    // Nothing to auto-preview yet (no mask, or no pattern selected, or
+    // single-artwork mode with nothing uploaded) — fall back to the plain
+    // translucent mask swatch so the user still sees where it'll go.
+    if (previewCanvas) previewCanvas.style.opacity = '0';
+    slotItem.style.opacity = '0.55';
+    return;
+  }
+
+  const maskImg = await mmLoadImage(maskSrc);
+  if (!maskImg) return;
+  // Bail if the mask/mode changed again while that image was loading.
+  if (page.querySelector('.mm-item[data-type="patternSlot"]') !== slotItem) return;
+
+  const maskCanvas = buildPatternSlotMaskCanvas(w, h, { x: 0, y: 0, w: 100, h: 100, r: 0, shape: 'custom' }, maskImg);
+
+  let canvas = page.querySelector('#mmPatternPreviewCanvas');
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.id = 'mmPatternPreviewCanvas';
+    canvas.style.cssText = 'position:absolute; left:0px; top:0px; pointer-events:none; z-index:6;';
+    page.appendChild(canvas);
+  }
+  canvas.width = w;
+  canvas.height = h;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  canvas.style.opacity = '1';
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  renderArtworkIntoMaskedRegion(ctx, {
+    maskCanvas, w, h, mode: ARTWORK_MODE_REPEAT,
+    blendMode: blendMode || 'multiply',
+    patternImg, scalePercent: 100, offsetX: 0, offsetY: 0
+  });
+
+  // The real pattern is now visible through the mask shape itself — hide
+  // the flat translucent swatch underneath (still there as the click
+  // target/bounds for selecting this layer).
+  slotItem.style.opacity = '0';
 }
 
 function mmCreateTextItem({ x, y, w, h, rotate, text, font, fontSize, color, itemId }) {
@@ -8894,9 +8974,11 @@ function mmSyncInspector() {
 
 document.getElementById('mmSlotModeSelect')?.addEventListener('change', e => {
   if (mmSelectedItemEl) mmSelectedItemEl.dataset.mode = e.target.value;
+  mmRefreshPatternPreview();
 });
 document.getElementById('mmSlotBlendSelect')?.addEventListener('change', e => {
   if (mmSelectedItemEl) mmSelectedItemEl.dataset.blend = e.target.value;
+  mmRefreshPatternPreview();
 });
 document.getElementById('mmSlotMaskBtn')?.addEventListener('click', () => {
   document.getElementById('mmSlotMaskInput').click();
@@ -8913,6 +8995,8 @@ document.getElementById('mmSlotMaskInput')?.addEventListener('change', e => {
   const src = URL.createObjectURL(file);
   mmObjectUrls.push(src);
   mmSelectedItemEl.style.backgroundImage = `url("${src}")`;
+  mmSelectedItemEl.dataset.maskSrc = src;
+  mmRefreshPatternPreview();
   showToastMessage('mask replaced — save to keep it');
 });
 
@@ -8993,6 +9077,7 @@ document.getElementById('mmUploadBackgroundInput')?.addEventListener('change', e
     mmItemMeta.set(item.dataset.itemId, { type: 'background', assetKey: previousAssetKey, blob: file, mime: file.type });
     document.getElementById('mmComposerHint')?.classList.add('hidden');
     mmRenderLayerList();
+    mmRefreshPatternPreview();
   };
   img.src = src;
 });
@@ -9021,7 +9106,9 @@ document.getElementById('mmUploadMaskInput')?.addEventListener('change', e => {
       meta.maskBlob = file; meta.maskMime = file.type; meta.maskAssetKey = null;
     }
     existingSlot.style.backgroundImage = `url("${src}")`;
+    existingSlot.dataset.maskSrc = src;
     mmSelectItem(existingSlot);
+    mmRefreshPatternPreview();
     showToastMessage('mask replaced — save to keep it');
     return;
   }
@@ -9127,6 +9214,7 @@ async function mmOpenComposer(recordId) {
   mmSyncInspector();
   mmRenderLayerList();
   document.getElementById('myMockupComposerOverlay').classList.remove('hidden');
+  mmRefreshPatternPreview();
 }
 
 function mmCloseComposer() {
