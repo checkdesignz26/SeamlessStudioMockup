@@ -2299,14 +2299,8 @@ input[type=text] {
       <div id="mmLayerList" style="display:flex; flex-direction:column; gap:4px; margin-bottom:14px; max-height:160px; overflow:auto;"></div>
 
       <div id="mmPatternSlotInspector" class="hidden" style="border-top:1px solid var(--border); padding-top:12px;">
-        <label>shape</label>
-        <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">the uploaded mask defines the exact printable area — rectangle/ellipse are only a fallback for when no mask is attached.</p>
-        <select id="mmSlotShapeSelect" style="width:100%; padding:10px; border-radius:40px; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text-primary);">
-          <option value="custom">custom (from uploaded mask)</option>
-          <option value="rect">rectangle (no mask)</option>
-          <option value="ellipse">ellipse (no mask)</option>
-        </select>
-        <label style="margin-top:10px; display:block;">artwork mode</label>
+        <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">🔒 locked to the mock-up photo — the mask is imported at the photo's exact size (0,0, full canvas) and isn't moved, resized or rotated. Its white/opaque area is exactly where the pattern renders.</p>
+        <label style="display:block;">artwork mode</label>
         <select id="mmSlotModeSelect" style="width:100%; padding:10px; border-radius:40px; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text-primary);">
           <option value="repeat">repeat pattern</option>
           <option value="single">single artwork</option>
@@ -8705,7 +8699,12 @@ function mmCreateBackgroundItem({ src, itemId }) {
   item.dataset.itemId = itemId || mmUid();
   item.dataset.rotate = 0;
   item.dataset.fit = 'stretch';
-  const w = page.offsetWidth, h = page.offsetHeight;
+  // Read the explicit inline style, not offsetWidth/Height — this can run
+  // while the composer overlay is still display:none during restore (before
+  // mmOpenComposer unhides it at the end), and offsetWidth/Height are 0 for
+  // any element whose ancestor has no layout box, even with an explicit
+  // pixel width/height set.
+  const w = parseFloat(page.style.width) || 0, h = parseFloat(page.style.height) || 0;
   item.style.cssText = `position:absolute; left:0px; top:0px; width:${w}px; height:${h}px; background-image:url("${src || ''}"); background-size:100% 100%; background-repeat:no-repeat; cursor:default; z-index:0;`;
   page.insertBefore(item, page.firstChild);
   return item;
@@ -8732,45 +8731,32 @@ function mmCreateImageItem({ src, x, y, w, h, rotate, opacity, fit, itemId }) {
 // aligning it. Without a maskSrc, it falls back to the old dashed
 // rect/ellipse placeholder (the optional convenience path for when no mask
 // has been attached yet).
-function mmCreatePatternSlotItem({ x, y, w, h, rotate, shape, mode, blendMode, itemId, maskSrc }) {
+// The pattern mask: a matched pair with the locked background photo, not a
+// freeform layer. Imported at the exact same width/height as the mock-up
+// canvas (0,0, full-bleed, stretched to fit — same technique as
+// mmCreateBackgroundItem), never moved/resized/rotated, no handles. Its
+// white/opaque pixels are what the real render (buildPatternSlotMaskCanvas)
+// clips the pattern to — the item here is purely a locked visual preview
+// (shown translucent over the photo) plus a click target so the user can
+// select it to reach its mode/blend/replace-mask controls in the inspector.
+function mmCreateLockedMaskItem({ src, mode, blendMode, itemId }) {
+  const page = mmActivePage();
   const item = document.createElement('div');
   item.className = 'mm-item mm-pattern-slot';
   item.dataset.type = 'patternSlot';
   item.dataset.itemId = itemId || mmUid();
-  item.dataset.rotate = rotate || 0;
-  item.dataset.shape = shape || (maskSrc ? 'custom' : 'rect');
+  item.dataset.rotate = 0;
+  item.dataset.shape = 'custom';
   item.dataset.mode = mode || ARTWORK_MODE_REPEAT;
   item.dataset.blend = blendMode || '';
-  item.style.cssText = `position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; transform:rotate(${rotate || 0}deg); cursor:move; border:2px dashed #3b82b2; box-sizing:border-box;`;
-  item.style.zIndex = ++mmZIndexCounter;
-  mmApplyPatternSlotVisual(item, maskSrc);
-  mmActivePage().appendChild(item);
-  mmAttachHandles(item);
-  mmMakeItemDraggable(item);
+  // Same offsetWidth/Height caveat as mmCreateBackgroundItem — read the
+  // explicit inline style instead, since this can run while the composer
+  // overlay is still hidden during restore.
+  const w = parseFloat(page.style.width) || 0, h = parseFloat(page.style.height) || 0;
+  item.style.cssText = `position:absolute; left:0px; top:0px; width:${w}px; height:${h}px; background:url("${src || ''}") center / 100% 100% no-repeat; opacity:0.55; cursor:pointer; z-index:5;`;
+  item.addEventListener('click', () => mmSelectItem(item));
+  page.appendChild(item);
   return item;
-}
-
-// Shared by creation and by "replace mask image" so both paths render the
-// slot identically.
-function mmApplyPatternSlotVisual(item, maskSrc) {
-  const shape = item.dataset.shape || 'rect';
-  item.style.borderRadius = (shape === 'ellipse') ? '50%' : (shape === 'custom' ? '4px' : '4px');
-  if (maskSrc) {
-    item.style.background = `rgba(59,130,178,0.12) url("${maskSrc}") center / 100% 100% no-repeat`;
-    item.style.opacity = '0.6';
-    item.innerHTML = '';
-  } else {
-    item.style.background = 'repeating-linear-gradient(45deg, rgba(90,140,160,0.18), rgba(90,140,160,0.18) 8px, rgba(90,140,160,0.30) 8px, rgba(90,140,160,0.30) 16px)';
-    item.style.opacity = '1';
-    item.style.display = 'flex';
-    item.style.alignItems = 'center';
-    item.style.justifyContent = 'center';
-    item.style.fontSize = '12px';
-    item.style.color = '#1f4b63';
-    item.style.textAlign = 'center';
-    item.style.fontWeight = '600';
-    item.innerHTML = '<span class="mm-slot-label" style="pointer-events:none; background:rgba(255,255,255,0.75); padding:2px 6px; border-radius:4px;">pattern / print area — no mask yet</span>';
-  }
 }
 
 function mmCreateTextItem({ x, y, w, h, rotate, text, font, fontSize, color, itemId }) {
@@ -8804,12 +8790,12 @@ function mmRenderLayerList() {
     const row = document.createElement('div');
     if (item.dataset.type === 'background') {
       row.style.cssText = 'display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:8px; font-size:13px; color:var(--muted);';
-      row.textContent = '🔒 mock-up photo (locked background)';
+      row.textContent = '🔒 mock-up photo';
       list.appendChild(row);
       return;
     }
     row.style.cssText = 'display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:8px; cursor:pointer; font-size:13px;' + (item.dataset.itemId === mmSelectedItemId ? ' background:rgba(59,130,178,0.15);' : '');
-    row.textContent = item.dataset.type === 'patternSlot' ? '▦ pattern/print area' : item.dataset.type === 'text' ? '🔤 text' : '🖼 image';
+    row.textContent = item.dataset.type === 'patternSlot' ? '🔒 pattern mask' : item.dataset.type === 'text' ? '🔤 text' : '🖼 image';
     row.addEventListener('click', () => mmSelectItem(item));
     list.appendChild(row);
   });
@@ -8827,27 +8813,16 @@ function mmSyncInspector() {
   if (!inspector) return;
   const isSlot = mmSelectedItemEl && mmSelectedItemEl.dataset.type === 'patternSlot';
   inspector.classList.toggle('hidden', !isSlot);
-  if (deleteBtn) deleteBtn.classList.toggle('hidden', !mmSelectedItemEl);
+  // Neither locked layer (background photo or pattern mask) can be deleted
+  // through this button — "replace" is the only way to change them.
+  const lockedType = mmSelectedItemEl && (mmSelectedItemEl.dataset.type === 'background' || mmSelectedItemEl.dataset.type === 'patternSlot');
+  if (deleteBtn) deleteBtn.classList.toggle('hidden', !mmSelectedItemEl || lockedType);
   if (isSlot) {
-    document.getElementById('mmSlotShapeSelect').value = mmSelectedItemEl.dataset.shape || 'rect';
     document.getElementById('mmSlotModeSelect').value = mmSelectedItemEl.dataset.mode || ARTWORK_MODE_REPEAT;
     document.getElementById('mmSlotBlendSelect').value = mmSelectedItemEl.dataset.blend || '';
   }
 }
 
-document.getElementById('mmSlotShapeSelect')?.addEventListener('change', e => {
-  if (!mmSelectedItemEl) return;
-  const nextShape = e.target.value;
-  mmSelectedItemEl.dataset.shape = nextShape;
-  if (nextShape !== 'custom') {
-    // Explicitly choosing the rect/ellipse fallback means "don't use the
-    // uploaded mask" — clear it so buildPatternSlotMaskCanvas's
-    // mask-takes-priority logic doesn't silently keep using it.
-    const meta = mmItemMeta.get(mmSelectedItemEl.dataset.itemId);
-    if (meta) { meta.maskAssetKey = null; meta.maskBlob = null; meta.maskMime = null; }
-    mmApplyPatternSlotVisual(mmSelectedItemEl, null);
-  }
-});
 document.getElementById('mmSlotModeSelect')?.addEventListener('change', e => {
   if (mmSelectedItemEl) mmSelectedItemEl.dataset.mode = e.target.value;
 });
@@ -8868,10 +8843,8 @@ document.getElementById('mmSlotMaskInput')?.addEventListener('change', e => {
   }
   const src = URL.createObjectURL(file);
   mmObjectUrls.push(src);
-  mmSelectedItemEl.dataset.shape = 'custom';
-  mmApplyPatternSlotVisual(mmSelectedItemEl, src);
-  mmSyncInspector();
-  showToastMessage('mask attached — save to keep it');
+  mmSelectedItemEl.style.backgroundImage = `url("${src}")`;
+  showToastMessage('mask replaced — save to keep it');
 });
 
 /* ---------- composer display zoom (scale-to-fit) ----------
@@ -8968,10 +8941,9 @@ document.getElementById('mmUploadMaskInput')?.addEventListener('change', e => {
   const src = URL.createObjectURL(file);
   mmObjectUrls.push(src);
 
-  // If a pattern/print area already exists, treat this as replacing its
-  // mask rather than creating a competing second one — v1 only applies
-  // patterns through the primary slot, so a second slot would just be
-  // confusing dead weight.
+  // Masks are a matched pair with the photo, not a freeform layer — there's
+  // only ever one. If it already exists, this replaces its image in place
+  // rather than creating a second competing one.
   const existingSlot = mmActivePage().querySelector('.mm-item[data-type="patternSlot"]');
   if (existingSlot) {
     const meta = mmItemMeta.get(existingSlot.dataset.itemId);
@@ -8979,17 +8951,13 @@ document.getElementById('mmUploadMaskInput')?.addEventListener('change', e => {
       if (meta.maskAssetKey) deleteCustomMockupAsset(meta.maskAssetKey).catch(() => {});
       meta.maskBlob = file; meta.maskMime = file.type; meta.maskAssetKey = null;
     }
-    existingSlot.dataset.shape = 'custom';
-    mmApplyPatternSlotVisual(existingSlot, src);
+    existingSlot.style.backgroundImage = `url("${src}")`;
     mmSelectItem(existingSlot);
     showToastMessage('mask replaced — save to keep it');
     return;
   }
 
-  const page = mmActivePage();
-  const pw = page.offsetWidth, ph = page.offsetHeight;
-  const w = pw * 0.6, h = ph * 0.6;
-  const item = mmCreatePatternSlotItem({ x: (pw - w) / 2, y: (ph - h) / 2, w, h, rotate: 0, shape: 'custom', mode: ARTWORK_MODE_REPEAT, blendMode: '', maskSrc: src });
+  const item = mmCreateLockedMaskItem({ src, mode: ARTWORK_MODE_REPEAT, blendMode: '' });
   mmItemMeta.set(item.dataset.itemId, { type: 'patternSlot', maskAssetKey: null, maskBlob: file, maskMime: file.type, singleArtworkAssetKey: null, singleBlob: null, singleMime: null, singleFit: 'contain', singleScale: 100, singleOffsetX: 0, singleOffsetY: 0 });
   mmSelectItem(item);
 });
@@ -9003,7 +8971,7 @@ document.getElementById('mmAddTextBtn')?.addEventListener('click', () => {
 });
 
 document.getElementById('mmDeleteLayerBtn')?.addEventListener('click', () => {
-  if (!mmSelectedItemEl || mmSelectedItemEl.dataset.type === 'background') return;
+  if (!mmSelectedItemEl || mmSelectedItemEl.dataset.type === 'background' || mmSelectedItemEl.dataset.type === 'patternSlot') return;
   mmItemMeta.delete(mmSelectedItemEl.dataset.itemId);
   mmSelectedItemEl.remove();
   mmDeselectAll();
@@ -9044,7 +9012,7 @@ async function mmRestoreLayer(layer, page) {
       const asset = await loadCustomMockupAsset(layer.maskAssetKey);
       if (asset && asset.blob) { maskSrc = URL.createObjectURL(asset.blob); mmObjectUrls.push(maskSrc); }
     }
-    const item = mmCreatePatternSlotItem({ x, y, w, h, rotate: layer.r, shape: layer.shape, mode: layer.mode, blendMode: layer.blendMode, itemId: layer.id, maskSrc });
+    const item = mmCreateLockedMaskItem({ src: maskSrc, mode: layer.mode, blendMode: layer.blendMode, itemId: layer.id });
     mmItemMeta.set(item.dataset.itemId, {
       type: 'patternSlot',
       maskAssetKey: layer.maskAssetKey || null, maskBlob: null, maskMime: null,
