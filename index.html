@@ -1986,6 +1986,23 @@ input[type=text] {
           <h2 style="margin:0 0 6px;">my mock-ups</h2>
           <p style="color:var(--muted); font-size:13px; margin:0 0 18px;">import your own mock-up photo, arrange it, and save it as a reusable template — then apply any pattern to it just like a studio mock-up.</p>
 
+          <section class="upload-card" id="myMockupsPatternEmpty" style="margin-bottom:16px;">
+            <input id="myMockupsPatternInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp">
+            <div>
+              <div class="upload-icon">✎</div>
+              <h2>upload your pattern</h2>
+              <p>one pattern · applies to studio mock-ups and your own · ready to download</p>
+            </div>
+          </section>
+          <section class="upload-strip hidden" id="myMockupsPatternSet" style="margin-bottom:16px;">
+            <img id="myMockupsPatternThumb" alt="" style="width:48px; height:48px; border-radius:8px; object-fit:cover;">
+            <div>
+              <div class="strip-title" id="myMockupsPatternName">pattern uploaded</div>
+              <div class="strip-sub">this is the same pattern used across studio mock-ups — pick a different one here or on that tab</div>
+            </div>
+            <button class="secondary" id="myMockupsReplacePatternBtn" type="button">replace</button>
+          </section>
+
           <div class="card-grid" id="myMockupsGrid">
             <!-- Deliberately NOT .mock-card: that class is also matched by a page-load-time
                  `document.querySelectorAll('.mock-card').forEach(card => card.querySelector('.select-bubble')...)`
@@ -2361,7 +2378,10 @@ modeBtns.forEach(btn => {
     Object.entries(modePanelsByMode).forEach(([key, panel]) => {
       if (panel) panel.classList.toggle('hidden', key !== mode);
     });
-    if (mode === 'mine' && typeof renderMyMockupsGrid === 'function') renderMyMockupsGrid();
+    if (mode === 'mine') {
+      if (typeof renderMyMockupsGrid === 'function') renderMyMockupsGrid();
+      if (typeof syncMyMockupsPatternBar === 'function') syncMyMockupsPatternBar();
+    }
   });
 });
 
@@ -8473,6 +8493,55 @@ async function deleteCustomMockupAndRefresh(id) {
 if (addMockupTileEl) {
   addMockupTileEl.addEventListener('click', () => mmOpenComposer(null));
 }
+
+/* ---------- My Mock-ups pattern bar ----------
+   Studio Mock-ups only ever shows a pattern upload on its own tab, so a
+   user who starts on My Mock-ups and never visits that tab has no visible
+   way to set the default pattern — every custom mock-up would render with
+   nothing to tile. This reuses the exact same global pattern state
+   (quickPatternSrc/quickPatternImage via setMainQuickPattern) so uploading
+   here or on the Studio tab keeps both in sync. */
+
+function syncMyMockupsPatternBar() {
+  const emptyCard = document.getElementById('myMockupsPatternEmpty');
+  const setStrip = document.getElementById('myMockupsPatternSet');
+  if (!emptyCard || !setStrip) return;
+  const has = !!quickPatternSrc;
+  emptyCard.classList.toggle('hidden', has);
+  setStrip.classList.toggle('hidden', !has);
+  if (has) {
+    const thumb = document.getElementById('myMockupsPatternThumb');
+    const nameEl = document.getElementById('myMockupsPatternName');
+    if (thumb) thumb.src = quickPatternSrc;
+    if (nameEl) nameEl.textContent = document.getElementById('quickFileName')?.textContent || 'pattern uploaded';
+  }
+}
+
+document.getElementById('myMockupsPatternInput')?.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    await setMainQuickPattern(ev.target.result, file.name);
+    syncMyMockupsPatternBar();
+    if (currentPreviewProduct && currentPreviewProduct.startsWith('custom:')) refreshCurrentPreviewRender();
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('myMockupsReplacePatternBtn')?.addEventListener('click', () => {
+  const myInput = document.getElementById('myMockupsPatternInput');
+  const quickInput = document.getElementById('quickUploadInput');
+  if (myInput) myInput.value = '';
+  if (quickInput) quickInput.value = '';
+  quickPatternImage = null;
+  quickPatternSrc = '';
+  renderAllPatternSwatchRows();
+  renderQuickCardsSequentially(ALL_QUICK_PRODUCTS);
+  document.getElementById('quickUploadStrip')?.classList.add('hidden');
+  document.getElementById('quickUploadCard')?.classList.remove('hidden');
+  syncMyMockupsPatternBar();
+});
 </script>
 
 <script>
