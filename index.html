@@ -2325,8 +2325,8 @@ input[type=text] {
         </select>
         <label style="margin-top:10px; display:block;">blend</label>
         <select id="mmSlotBlendSelect" style="width:100%; padding:10px; border-radius:40px; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text-primary);">
-          <option value="overlay">overlay (shaded)</option>
           <option value="multiply">multiply</option>
+          <option value="overlay">overlay (shaded)</option>
           <option value="normal">normal (flat)</option>
         </select>
         <input type="file" id="mmSlotMaskInput" accept="image/png" style="display:none;">
@@ -3430,7 +3430,7 @@ function renderArtworkIntoMaskedRegion(ctx, opts) {
   lctx.drawImage(maskCanvas, 0, 0, w, h);
   lctx.globalCompositeOperation = 'source-over';
 
-  const resolvedBlend = blendMode || (mode === ARTWORK_MODE_SINGLE ? 'normal' : 'overlay');
+  const resolvedBlend = blendMode || (mode === ARTWORK_MODE_SINGLE ? 'normal' : 'multiply');
 
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -4188,7 +4188,7 @@ async function renderFloorCushionMockupToCanvas(targetCanvas, forcedScalePercent
     ],
 
     // soft fabric tuning
-    patternBlend: 'overlay',
+    patternBlend: 'multiply',
     patternAlpha: 0.92,
     normalAlpha: 0.24,
     contrast: 1.08,
@@ -4374,7 +4374,7 @@ async function renderKitchenTowelMockupToCanvas(targetCanvas, forcedScalePercent
     // soft fabric tuning, matching the floor cushion feel
     ctx.save();
     ctx.globalAlpha = 0.90;
-    ctx.globalCompositeOperation = 'overlay';
+    ctx.globalCompositeOperation = 'multiply';
     ctx.drawImage(patternLayer, 0, 0);
     ctx.restore();
 
@@ -4865,7 +4865,7 @@ async function renderBucketHatMockupToCanvas(targetCanvas, forcedScalePercent = 
     // soft canvas-fabric tuning, similar feel to the floor cushion / kitchen towel
     ctx.save();
     ctx.globalAlpha = 0.90;
-    ctx.globalCompositeOperation = 'overlay';
+    ctx.globalCompositeOperation = 'multiply';
     ctx.drawImage(patternLayer, 0, 0);
     ctx.restore();
 
@@ -5131,7 +5131,7 @@ async function renderBookmarkMockupToCanvas(targetCanvas, forcedScalePercent = n
 
     ctx.save();
     ctx.globalAlpha = 0.90;
-    ctx.globalCompositeOperation = 'overlay';
+    ctx.globalCompositeOperation = 'multiply';
     ctx.drawImage(patternLayer, 0, 0);
     ctx.restore();
 
@@ -9478,7 +9478,7 @@ async function renderCustomMockupToCanvas(targetCanvas, mockupId, forcedScalePer
         renderArtworkIntoMaskedRegion(ctx, {
           maskCanvas, w: record.page.w, h: record.page.h,
           mode: ARTWORK_MODE_REPEAT,
-          blendMode: layer.blendMode || 'overlay',
+          blendMode: layer.blendMode || 'multiply',
           patternImg,
           scalePercent,
           offsetX: offset.x,
