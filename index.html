@@ -2281,11 +2281,15 @@ input[type=text] {
       <div style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:10px;">
         <h2 id="mmComposerTitle" style="margin:0;">new mock-up</h2>
       </div>
-      <div id="mmComposerPage" class="mm-composer-page" style="position:relative; width:700px; height:700px; max-width:100%; max-height:62vh; background:#eef0ee repeating-conic-gradient(#e4e6e3 0% 25%, #eef0ee 0% 50%) 50% / 24px 24px; border:1px solid var(--border); overflow:hidden; margin:0 auto;"></div>
-      <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
-        <input type="file" id="mmUploadArtworkInput" accept="image/png,image/jpeg,image/webp" style="display:none;">
-        <button class="secondary" id="mmUploadArtworkBtn" type="button">upload artwork</button>
-        <button class="secondary" id="mmAddPatternSlotBtn" type="button">+ add pattern/print area</button>
+      <div id="mmComposerPageViewport" style="width:700px; height:700px; max-width:100%; max-height:62vh; margin:0 auto; overflow:hidden; position:relative; background:var(--panel2); border:1px solid var(--border); border-radius:4px;">
+        <div id="mmComposerPage" class="mm-composer-page" style="position:absolute; top:0; left:0; width:700px; height:700px; transform-origin:top left; background:#eef0ee repeating-conic-gradient(#e4e6e3 0% 25%, #eef0ee 0% 50%) 50% / 24px 24px; overflow:hidden;"></div>
+      </div>
+      <p id="mmComposerHint" style="color:var(--muted); font-size:12px; text-align:center; margin:10px 0 0;">start by uploading your mock-up photo — it becomes the fixed background, sized exactly to that photo.</p>
+      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+        <input type="file" id="mmUploadBackgroundInput" accept="image/png,image/jpeg,image/webp" style="display:none;">
+        <button class="secondary" id="mmUploadBackgroundBtn" type="button">upload mock-up photo</button>
+        <input type="file" id="mmUploadMaskInput" accept="image/png" style="display:none;">
+        <button class="secondary" id="mmUploadMaskBtn" type="button">upload mask</button>
         <button class="secondary" id="mmAddTextBtn" type="button">+ add text</button>
       </div>
     </div>
@@ -2296,9 +2300,11 @@ input[type=text] {
 
       <div id="mmPatternSlotInspector" class="hidden" style="border-top:1px solid var(--border); padding-top:12px;">
         <label>shape</label>
+        <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">the uploaded mask defines the exact printable area — rectangle/ellipse are only a fallback for when no mask is attached.</p>
         <select id="mmSlotShapeSelect" style="width:100%; padding:10px; border-radius:40px; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text-primary);">
-          <option value="rect">rectangle</option>
-          <option value="ellipse">ellipse</option>
+          <option value="custom">custom (from uploaded mask)</option>
+          <option value="rect">rectangle (no mask)</option>
+          <option value="ellipse">ellipse (no mask)</option>
         </select>
         <label style="margin-top:10px; display:block;">artwork mode</label>
         <select id="mmSlotModeSelect" style="width:100%; padding:10px; border-radius:40px; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text-primary);">
@@ -2313,7 +2319,7 @@ input[type=text] {
           <option value="normal">normal (flat)</option>
         </select>
         <input type="file" id="mmSlotMaskInput" accept="image/png" style="display:none;">
-        <button class="secondary" id="mmSlotMaskBtn" type="button" style="width:100%; margin-top:10px;">upload custom mask (optional)</button>
+        <button class="secondary" id="mmSlotMaskBtn" type="button" style="width:100%; margin-top:10px;">replace mask image</button>
       </div>
 
       <button class="secondary" id="mmDeleteLayerBtn" type="button" style="width:100%; margin-top:10px;">delete selected layer</button>
@@ -8495,6 +8501,11 @@ let mmCurrentRecordNameCache = null;
 let mmSelectedItemEl = null;
 let mmSelectedItemId = null;
 let mmZIndexCounter = 1;
+let mmZoom = 1; // display-only scale-to-fit factor; #mmComposerPage's real width/height
+                 // (and every stored x/y/w/h) always stay in true model pixels, matching
+                 // the uploaded mock-up photo's own dimensions — mmZoom just lets a large
+                 // photo fit the composer viewport visually, same idea as the interactive
+                 // lookbook's ilZoom.
 const mmItemMeta = new Map(); // itemId -> { type, assetKey, blob, mime, ...patternSlot-only fields }
 const mmObjectUrls = [];
 
@@ -8558,8 +8569,8 @@ function mmMakeItemDraggable(item) {
     if (!dragging) return;
     e.preventDefault();
     const p = e.touches ? e.touches[0] : e;
-    item.style.left = (origLeft + (p.clientX - startX)) + 'px';
-    item.style.top = (origTop + (p.clientY - startY)) + 'px';
+    item.style.left = (origLeft + (p.clientX - startX) / mmZoom) + 'px';
+    item.style.top = (origTop + (p.clientY - startY) / mmZoom) + 'px';
   }
   function up() {
     dragging = false;
@@ -8590,8 +8601,8 @@ function mmMakeItemResizable(item, handle) {
     if (!resizing) return;
     e.preventDefault();
     const p = e.touches ? e.touches[0] : e;
-    item.style.width = Math.max(30, startW + (p.clientX - startX)) + 'px';
-    item.style.height = Math.max(30, startH + (p.clientY - startY)) + 'px';
+    item.style.width = Math.max(30, startW + (p.clientX - startX) / mmZoom) + 'px';
+    item.style.height = Math.max(30, startH + (p.clientY - startY) / mmZoom) + 'px';
   }
   function up() {
     resizing = false;
@@ -8641,11 +8652,23 @@ function mmMakeItemRotatable(item, handle) {
   handle.addEventListener('touchstart', down, { passive: false });
 }
 
+function mmRefreshHandleScale() {
+  const page = mmActivePage();
+  if (!page) return;
+  const inv = 1 / (mmZoom || 1);
+  page.querySelectorAll('.item-delete-handle, .item-resize-handle').forEach(h => { h.style.transform = `scale(${inv})`; });
+  page.querySelectorAll('.item-rotate-handle').forEach(h => { h.style.transform = `translateX(-50%) scale(${inv})`; });
+}
+
+// Not attached to background items (see mmCreateBackgroundItem) — that's
+// what makes the locked mock-up photo undraggable/unresizable/undeletable:
+// it simply never gets these handles or a pointer-drag listener at all.
 function mmAttachHandles(item) {
+  const inv = 1 / (mmZoom || 1);
   const del = document.createElement('div');
   del.className = 'item-delete-handle';
   del.textContent = '×';
-  del.style.cssText = 'position:absolute; top:-10px; right:-10px; width:22px; height:22px; border-radius:50%; background:#b23b3b; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; z-index:9999; line-height:1;';
+  del.style.cssText = `position:absolute; top:-10px; right:-10px; width:22px; height:22px; border-radius:50%; background:#b23b3b; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; z-index:9999; line-height:1; transform:scale(${inv}); transform-origin:center;`;
   del.addEventListener('click', e => {
     e.stopPropagation();
     mmItemMeta.delete(item.dataset.itemId);
@@ -8657,18 +8680,36 @@ function mmAttachHandles(item) {
 
   const resize = document.createElement('div');
   resize.className = 'item-resize-handle';
-  resize.style.cssText = 'position:absolute; bottom:-8px; right:-8px; width:16px; height:16px; border-radius:4px; background:#fff; border:2px solid #333; cursor:nwse-resize; z-index:9999;';
+  resize.style.cssText = `position:absolute; bottom:-8px; right:-8px; width:16px; height:16px; border-radius:4px; background:#fff; border:2px solid #333; cursor:nwse-resize; z-index:9999; transform:scale(${inv}); transform-origin:center;`;
   item.appendChild(resize);
   mmMakeItemResizable(item, resize);
 
   const rotate = document.createElement('div');
   rotate.className = 'item-rotate-handle';
-  rotate.style.cssText = 'position:absolute; top:-26px; left:50%; transform:translateX(-50%); width:14px; height:14px; border-radius:50%; background:#fff; border:2px solid #333; cursor:grab; z-index:9999;';
+  rotate.style.cssText = `position:absolute; top:-26px; left:50%; width:14px; height:14px; border-radius:50%; background:#fff; border:2px solid #333; cursor:grab; z-index:9999; transform:translateX(-50%) scale(${inv});`;
   item.appendChild(rotate);
   mmMakeItemRotatable(item, rotate);
 }
 
 /* ---------- item factories ---------- */
+
+// The locked mock-up photo: always full-bleed (0,0,100%,100% of the page),
+// never draggable/resizable/rotatable, no delete handle — the user isn't
+// composing this photo, they're defining where the pattern goes on top of
+// it. Re-uploading via "upload mock-up photo" replaces it in place.
+function mmCreateBackgroundItem({ src, itemId }) {
+  const page = mmActivePage();
+  const item = document.createElement('div');
+  item.className = 'mm-item mm-background-item';
+  item.dataset.type = 'background';
+  item.dataset.itemId = itemId || mmUid();
+  item.dataset.rotate = 0;
+  item.dataset.fit = 'stretch';
+  const w = page.offsetWidth, h = page.offsetHeight;
+  item.style.cssText = `position:absolute; left:0px; top:0px; width:${w}px; height:${h}px; background-image:url("${src || ''}"); background-size:100% 100%; background-repeat:no-repeat; cursor:default; z-index:0;`;
+  page.insertBefore(item, page.firstChild);
+  return item;
+}
 
 function mmCreateImageItem({ src, x, y, w, h, rotate, opacity, fit, itemId }) {
   const item = document.createElement('div');
@@ -8685,23 +8726,51 @@ function mmCreateImageItem({ src, x, y, w, h, rotate, opacity, fit, itemId }) {
   return item;
 }
 
-function mmCreatePatternSlotItem({ x, y, w, h, rotate, shape, mode, blendMode, itemId }) {
+// maskSrc (an object URL to the actual uploaded mask image) is the normal
+// case now — it's shown as a translucent preview over the locked mock-up
+// photo so the user can see both the mask shape and the backdrop while
+// aligning it. Without a maskSrc, it falls back to the old dashed
+// rect/ellipse placeholder (the optional convenience path for when no mask
+// has been attached yet).
+function mmCreatePatternSlotItem({ x, y, w, h, rotate, shape, mode, blendMode, itemId, maskSrc }) {
   const item = document.createElement('div');
   item.className = 'mm-item mm-pattern-slot';
   item.dataset.type = 'patternSlot';
   item.dataset.itemId = itemId || mmUid();
   item.dataset.rotate = rotate || 0;
-  item.dataset.shape = shape || 'rect';
+  item.dataset.shape = shape || (maskSrc ? 'custom' : 'rect');
   item.dataset.mode = mode || ARTWORK_MODE_REPEAT;
   item.dataset.blend = blendMode || '';
-  item.style.cssText = `position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; transform:rotate(${rotate || 0}deg); cursor:move; background:repeating-linear-gradient(45deg, rgba(90,140,160,0.18), rgba(90,140,160,0.18) 8px, rgba(90,140,160,0.30) 8px, rgba(90,140,160,0.30) 16px); border:2px dashed #3b82b2; display:flex; align-items:center; justify-content:center; font-size:12px; color:#1f4b63; text-align:center; font-weight:600; box-sizing:border-box;`;
-  item.style.borderRadius = (shape === 'ellipse') ? '50%' : '4px';
-  item.innerHTML = '<span class="mm-slot-label" style="pointer-events:none; background:rgba(255,255,255,0.75); padding:2px 6px; border-radius:4px;">pattern / print area</span>';
+  item.style.cssText = `position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; transform:rotate(${rotate || 0}deg); cursor:move; border:2px dashed #3b82b2; box-sizing:border-box;`;
   item.style.zIndex = ++mmZIndexCounter;
+  mmApplyPatternSlotVisual(item, maskSrc);
   mmActivePage().appendChild(item);
   mmAttachHandles(item);
   mmMakeItemDraggable(item);
   return item;
+}
+
+// Shared by creation and by "replace mask image" so both paths render the
+// slot identically.
+function mmApplyPatternSlotVisual(item, maskSrc) {
+  const shape = item.dataset.shape || 'rect';
+  item.style.borderRadius = (shape === 'ellipse') ? '50%' : (shape === 'custom' ? '4px' : '4px');
+  if (maskSrc) {
+    item.style.background = `rgba(59,130,178,0.12) url("${maskSrc}") center / 100% 100% no-repeat`;
+    item.style.opacity = '0.6';
+    item.innerHTML = '';
+  } else {
+    item.style.background = 'repeating-linear-gradient(45deg, rgba(90,140,160,0.18), rgba(90,140,160,0.18) 8px, rgba(90,140,160,0.30) 8px, rgba(90,140,160,0.30) 16px)';
+    item.style.opacity = '1';
+    item.style.display = 'flex';
+    item.style.alignItems = 'center';
+    item.style.justifyContent = 'center';
+    item.style.fontSize = '12px';
+    item.style.color = '#1f4b63';
+    item.style.textAlign = 'center';
+    item.style.fontWeight = '600';
+    item.innerHTML = '<span class="mm-slot-label" style="pointer-events:none; background:rgba(255,255,255,0.75); padding:2px 6px; border-radius:4px;">pattern / print area — no mask yet</span>';
+  }
 }
 
 function mmCreateTextItem({ x, y, w, h, rotate, text, font, fontSize, color, itemId }) {
@@ -8733,6 +8802,12 @@ function mmRenderLayerList() {
   const items = mmActivePage() ? [...mmActivePage().querySelectorAll('.mm-item')] : [];
   items.forEach(item => {
     const row = document.createElement('div');
+    if (item.dataset.type === 'background') {
+      row.style.cssText = 'display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:8px; font-size:13px; color:var(--muted);';
+      row.textContent = '🔒 mock-up photo (locked background)';
+      list.appendChild(row);
+      return;
+    }
     row.style.cssText = 'display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:8px; cursor:pointer; font-size:13px;' + (item.dataset.itemId === mmSelectedItemId ? ' background:rgba(59,130,178,0.15);' : '');
     row.textContent = item.dataset.type === 'patternSlot' ? '▦ pattern/print area' : item.dataset.type === 'text' ? '🔤 text' : '🖼 image';
     row.addEventListener('click', () => mmSelectItem(item));
@@ -8741,7 +8816,7 @@ function mmRenderLayerList() {
   if (!items.length) {
     const empty = document.createElement('div');
     empty.style.cssText = 'color:var(--muted); font-size:13px;';
-    empty.textContent = 'no layers yet — upload artwork or add a pattern area to begin.';
+    empty.textContent = 'no layers yet — upload your mock-up photo to begin.';
     list.appendChild(empty);
   }
 }
@@ -8762,8 +8837,16 @@ function mmSyncInspector() {
 
 document.getElementById('mmSlotShapeSelect')?.addEventListener('change', e => {
   if (!mmSelectedItemEl) return;
-  mmSelectedItemEl.dataset.shape = e.target.value;
-  mmSelectedItemEl.style.borderRadius = e.target.value === 'ellipse' ? '50%' : '4px';
+  const nextShape = e.target.value;
+  mmSelectedItemEl.dataset.shape = nextShape;
+  if (nextShape !== 'custom') {
+    // Explicitly choosing the rect/ellipse fallback means "don't use the
+    // uploaded mask" — clear it so buildPatternSlotMaskCanvas's
+    // mask-takes-priority logic doesn't silently keep using it.
+    const meta = mmItemMeta.get(mmSelectedItemEl.dataset.itemId);
+    if (meta) { meta.maskAssetKey = null; meta.maskBlob = null; meta.maskMime = null; }
+    mmApplyPatternSlotVisual(mmSelectedItemEl, null);
+  }
 });
 document.getElementById('mmSlotModeSelect')?.addEventListener('change', e => {
   if (mmSelectedItemEl) mmSelectedItemEl.dataset.mode = e.target.value;
@@ -8777,42 +8860,137 @@ document.getElementById('mmSlotMaskBtn')?.addEventListener('click', () => {
 document.getElementById('mmSlotMaskInput')?.addEventListener('change', e => {
   const file = e.target.files[0];
   e.target.value = '';
-  if (!file || !mmSelectedItemEl) return;
+  if (!file || !mmSelectedItemEl || mmSelectedItemEl.dataset.type !== 'patternSlot') return;
   const meta = mmItemMeta.get(mmSelectedItemEl.dataset.itemId);
-  if (meta) { meta.maskBlob = file; meta.maskMime = file.type; meta.maskAssetKey = null; }
-  showToastMessage('custom mask attached — save to keep it');
+  if (meta) {
+    if (meta.maskAssetKey) deleteCustomMockupAsset(meta.maskAssetKey).catch(() => {});
+    meta.maskBlob = file; meta.maskMime = file.type; meta.maskAssetKey = null;
+  }
+  const src = URL.createObjectURL(file);
+  mmObjectUrls.push(src);
+  mmSelectedItemEl.dataset.shape = 'custom';
+  mmApplyPatternSlotVisual(mmSelectedItemEl, src);
+  mmSyncInspector();
+  showToastMessage('mask attached — save to keep it');
 });
+
+/* ---------- composer display zoom (scale-to-fit) ----------
+   #mmComposerPage's own width/height (and every item's stored x/y/w/h)
+   always stay in true model pixels, matching the uploaded mock-up photo's
+   real dimensions exactly, per spec. mmZoom is a pure display transform so
+   a large photo still fits the composer viewport — same idea as the
+   interactive lookbook's ilZoom. Pointer-drag math divides by mmZoom (see
+   mmMakeItemDraggable/mmMakeItemResizable); rotate math is angle-only and
+   needs no correction. */
+const MM_COMPOSER_DISPLAY_MAX_W = 700;
+const MM_COMPOSER_DISPLAY_MAX_H = 560;
+
+function mmApplyComposerZoom(pageW, pageH) {
+  mmZoom = Math.min(1, MM_COMPOSER_DISPLAY_MAX_W / pageW, MM_COMPOSER_DISPLAY_MAX_H / pageH) || 1;
+  const page = mmActivePage();
+  page.style.width = pageW + 'px';
+  page.style.height = pageH + 'px';
+  page.style.transform = `scale(${mmZoom})`;
+  const viewport = document.getElementById('mmComposerPageViewport');
+  if (viewport) {
+    viewport.style.width = Math.max(1, Math.round(pageW * mmZoom)) + 'px';
+    viewport.style.height = Math.max(1, Math.round(pageH * mmZoom)) + 'px';
+  }
+  mmRefreshHandleScale();
+}
+
+// Replacing the mock-up photo after other layers already exist would
+// otherwise strand them at stale pixel positions sized for the old canvas —
+// rescale every existing item proportionally so their placement relative to
+// the photo stays visually consistent.
+function mmRescaleExistingItems(oldW, oldH, newW, newH) {
+  if (!oldW || !oldH) return;
+  const sx = newW / oldW, sy = newH / oldH;
+  mmActivePage().querySelectorAll('.mm-item:not(.mm-background-item)').forEach(item => {
+    item.style.left = ((parseFloat(item.style.left) || 0) * sx) + 'px';
+    item.style.top = ((parseFloat(item.style.top) || 0) * sy) + 'px';
+    item.style.width = ((parseFloat(item.style.width) || 0) * sx) + 'px';
+    item.style.height = ((parseFloat(item.style.height) || 0) * sy) + 'px';
+  });
+}
 
 /* ---------- toolbar ---------- */
 
-document.getElementById('mmUploadArtworkBtn')?.addEventListener('click', () => {
-  document.getElementById('mmUploadArtworkInput').click();
+document.getElementById('mmUploadBackgroundBtn')?.addEventListener('click', () => {
+  document.getElementById('mmUploadBackgroundInput').click();
 });
-document.getElementById('mmUploadArtworkInput')?.addEventListener('change', e => {
+document.getElementById('mmUploadBackgroundInput')?.addEventListener('change', e => {
   const file = e.target.files[0];
   e.target.value = '';
   if (!file) return;
   const src = URL.createObjectURL(file);
   mmObjectUrls.push(src);
-  const page = mmActivePage();
-  const pw = page.offsetWidth, ph = page.offsetHeight;
   const img = new Image();
   img.onload = () => {
-    const boxW = pw * 0.8;
-    const boxH = Math.min(ph * 0.8, boxW * (img.naturalHeight / img.naturalWidth));
-    const item = mmCreateImageItem({ src, x: (pw - boxW) / 2, y: (ph - boxH) / 2, w: boxW, h: boxH, rotate: 0, opacity: 1, fit: 'cover' });
-    mmItemMeta.set(item.dataset.itemId, { type: 'image', assetKey: null, blob: file, mime: file.type });
-    mmSelectItem(item);
+    const page = mmActivePage();
+    const oldW = page.offsetWidth, oldH = page.offsetHeight;
+    const newW = img.naturalWidth || oldW, newH = img.naturalHeight || oldH;
+
+    mmApplyComposerZoom(newW, newH);
+    mmRescaleExistingItems(oldW, oldH, newW, newH);
+
+    const existingBg = page.querySelector('.mm-background-item');
+    let item, previousAssetKey = null;
+    if (existingBg) {
+      item = existingBg;
+      const prevMeta = mmItemMeta.get(item.dataset.itemId);
+      previousAssetKey = prevMeta ? prevMeta.assetKey : null;
+      item.style.backgroundImage = `url("${src}")`;
+      item.style.width = newW + 'px';
+      item.style.height = newH + 'px';
+    } else {
+      item = mmCreateBackgroundItem({ src });
+    }
+    // Carry the old assetKey forward (not discard it) so mmSaveAsMockup's
+    // blob-replace logic can delete the superseded asset instead of leaking it.
+    mmItemMeta.set(item.dataset.itemId, { type: 'background', assetKey: previousAssetKey, blob: file, mime: file.type });
+    document.getElementById('mmComposerHint')?.classList.add('hidden');
+    mmRenderLayerList();
   };
   img.src = src;
 });
 
-document.getElementById('mmAddPatternSlotBtn')?.addEventListener('click', () => {
+document.getElementById('mmUploadMaskBtn')?.addEventListener('click', () => {
+  if (!mmActivePage().querySelector('.mm-background-item')) {
+    showToastMessage('upload your mock-up photo first, then add its mask');
+  }
+  document.getElementById('mmUploadMaskInput').click();
+});
+document.getElementById('mmUploadMaskInput')?.addEventListener('change', e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const src = URL.createObjectURL(file);
+  mmObjectUrls.push(src);
+
+  // If a pattern/print area already exists, treat this as replacing its
+  // mask rather than creating a competing second one — v1 only applies
+  // patterns through the primary slot, so a second slot would just be
+  // confusing dead weight.
+  const existingSlot = mmActivePage().querySelector('.mm-item[data-type="patternSlot"]');
+  if (existingSlot) {
+    const meta = mmItemMeta.get(existingSlot.dataset.itemId);
+    if (meta) {
+      if (meta.maskAssetKey) deleteCustomMockupAsset(meta.maskAssetKey).catch(() => {});
+      meta.maskBlob = file; meta.maskMime = file.type; meta.maskAssetKey = null;
+    }
+    existingSlot.dataset.shape = 'custom';
+    mmApplyPatternSlotVisual(existingSlot, src);
+    mmSelectItem(existingSlot);
+    showToastMessage('mask replaced — save to keep it');
+    return;
+  }
+
   const page = mmActivePage();
   const pw = page.offsetWidth, ph = page.offsetHeight;
-  const w = pw * 0.5, h = ph * 0.5;
-  const item = mmCreatePatternSlotItem({ x: (pw - w) / 2, y: (ph - h) / 2, w, h, rotate: 0, shape: 'rect', mode: ARTWORK_MODE_REPEAT, blendMode: '' });
-  mmItemMeta.set(item.dataset.itemId, { type: 'patternSlot', maskAssetKey: null, maskBlob: null, maskMime: null, singleArtworkAssetKey: null, singleBlob: null, singleMime: null, singleFit: 'contain', singleScale: 100, singleOffsetX: 0, singleOffsetY: 0 });
+  const w = pw * 0.6, h = ph * 0.6;
+  const item = mmCreatePatternSlotItem({ x: (pw - w) / 2, y: (ph - h) / 2, w, h, rotate: 0, shape: 'custom', mode: ARTWORK_MODE_REPEAT, blendMode: '', maskSrc: src });
+  mmItemMeta.set(item.dataset.itemId, { type: 'patternSlot', maskAssetKey: null, maskBlob: file, maskMime: file.type, singleArtworkAssetKey: null, singleBlob: null, singleMime: null, singleFit: 'contain', singleScale: 100, singleOffsetX: 0, singleOffsetY: 0 });
   mmSelectItem(item);
 });
 
@@ -8825,7 +9003,7 @@ document.getElementById('mmAddTextBtn')?.addEventListener('click', () => {
 });
 
 document.getElementById('mmDeleteLayerBtn')?.addEventListener('click', () => {
-  if (!mmSelectedItemEl) return;
+  if (!mmSelectedItemEl || mmSelectedItemEl.dataset.type === 'background') return;
   mmItemMeta.delete(mmSelectedItemEl.dataset.itemId);
   mmSelectedItemEl.remove();
   mmDeselectAll();
@@ -8844,7 +9022,15 @@ async function mmRestoreLayer(layer, page) {
   const w = mmPercentToPx(layer.w, page.w);
   const h = mmPercentToPx(layer.h, page.h);
 
-  if (layer.type === 'image') {
+  if (layer.type === 'background') {
+    let src = '';
+    if (layer.assetKey) {
+      const asset = await loadCustomMockupAsset(layer.assetKey);
+      if (asset && asset.blob) { src = URL.createObjectURL(asset.blob); mmObjectUrls.push(src); }
+    }
+    const item = mmCreateBackgroundItem({ src, itemId: layer.id });
+    mmItemMeta.set(item.dataset.itemId, { type: 'background', assetKey: layer.assetKey || null, blob: null, mime: null });
+  } else if (layer.type === 'image') {
     let src = '';
     if (layer.assetKey) {
       const asset = await loadCustomMockupAsset(layer.assetKey);
@@ -8853,7 +9039,12 @@ async function mmRestoreLayer(layer, page) {
     const item = mmCreateImageItem({ src, x, y, w, h, rotate: layer.r, opacity: layer.opacity, fit: layer.fit, itemId: layer.id });
     mmItemMeta.set(item.dataset.itemId, { type: 'image', assetKey: layer.assetKey || null, blob: null, mime: null });
   } else if (layer.type === 'patternSlot') {
-    const item = mmCreatePatternSlotItem({ x, y, w, h, rotate: layer.r, shape: layer.shape, mode: layer.mode, blendMode: layer.blendMode, itemId: layer.id });
+    let maskSrc = null;
+    if (layer.maskAssetKey) {
+      const asset = await loadCustomMockupAsset(layer.maskAssetKey);
+      if (asset && asset.blob) { maskSrc = URL.createObjectURL(asset.blob); mmObjectUrls.push(maskSrc); }
+    }
+    const item = mmCreatePatternSlotItem({ x, y, w, h, rotate: layer.r, shape: layer.shape, mode: layer.mode, blendMode: layer.blendMode, itemId: layer.id, maskSrc });
     mmItemMeta.set(item.dataset.itemId, {
       type: 'patternSlot',
       maskAssetKey: layer.maskAssetKey || null, maskBlob: null, maskMime: null,
@@ -8883,17 +9074,17 @@ async function mmOpenComposer(recordId) {
     mmCurrentRecordId = record.id;
     mmCurrentRecordNameCache = record.name;
     document.getElementById('mmComposerTitle').textContent = record.name || 'mock-up';
-    page.style.width = record.page.w + 'px';
-    page.style.height = record.page.h + 'px';
+    mmApplyComposerZoom(record.page.w, record.page.h);
     for (const layer of record.layers) {
       await mmRestoreLayer(layer, record.page);
     }
+    document.getElementById('mmComposerHint')?.classList.toggle('hidden', record.layers.some(l => l.type === 'background'));
   } else {
     mmCurrentRecordId = null;
     mmCurrentRecordNameCache = null;
     document.getElementById('mmComposerTitle').textContent = 'new mock-up';
-    page.style.width = MM_DEFAULT_PAGE_W + 'px';
-    page.style.height = MM_DEFAULT_PAGE_H + 'px';
+    mmApplyComposerZoom(MM_DEFAULT_PAGE_W, MM_DEFAULT_PAGE_H);
+    document.getElementById('mmComposerHint')?.classList.remove('hidden');
   }
 
   mmSyncInspector();
@@ -8925,7 +9116,7 @@ function mmSerializeItem(item, page) {
     opacity: item.style.opacity === '' ? 1 : parseFloat(item.style.opacity)
   };
   const meta = mmItemMeta.get(item.dataset.itemId) || {};
-  if (item.dataset.type === 'image') {
+  if (item.dataset.type === 'image' || item.dataset.type === 'background') {
     return Object.assign(base, { assetKey: meta.assetKey || null, fit: item.dataset.fit || 'cover' });
   }
   if (item.dataset.type === 'patternSlot') {
@@ -9018,7 +9209,7 @@ async function flattenCustomMockupLayers(ctx, record, opts) {
     ctx.rotate(r * Math.PI / 180);
     ctx.translate(-lw / 2, -lh / 2);
 
-    if (layer.type === 'image') {
+    if (layer.type === 'image' || layer.type === 'background') {
       const img = opts.imagesByLayerId && opts.imagesByLayerId[layer.id];
       if (img) {
         const fit = layer.fit || 'cover';
@@ -9068,7 +9259,8 @@ async function mmSaveAsMockup() {
   const layers = [];
   for (const item of items) {
     const meta = mmItemMeta.get(item.dataset.itemId) || {};
-    if (item.dataset.type === 'image' && meta.blob) {
+    if ((item.dataset.type === 'image' || item.dataset.type === 'background') && meta.blob) {
+      if (meta.assetKey) await deleteCustomMockupAsset(meta.assetKey);
       meta.assetKey = await saveCustomMockupAsset(meta.blob, meta.mime);
       meta.blob = null;
     }
@@ -9096,7 +9288,7 @@ async function mmSaveAsMockup() {
 
   const imagesByLayerId = {};
   for (const item of items) {
-    if (item.dataset.type !== 'image') continue;
+    if (item.dataset.type !== 'image' && item.dataset.type !== 'background') continue;
     const meta = mmItemMeta.get(item.dataset.itemId) || {};
     const img = await mmLoadImageFromBlobOrKey(null, meta.assetKey);
     if (img) imagesByLayerId[item.dataset.itemId] = img;
@@ -9162,7 +9354,7 @@ async function loadCustomMockupRenderContext(mockupId, forceReload) {
 
   const images = {};
   for (const layer of record.layers) {
-    if (layer.type === 'image' && layer.assetKey) {
+    if ((layer.type === 'image' || layer.type === 'background') && layer.assetKey) {
       const img = await mmLoadImageFromBlobOrKey(null, layer.assetKey);
       if (img) images[layer.id] = img;
     }
