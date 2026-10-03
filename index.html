@@ -1515,8 +1515,9 @@ input[type=text] {
 
   <div class="top-controls">
     <nav class="mode-switch" aria-label="mode switch">
-      <button class="mode-btn active" data-mode="quick" type="button">quick mock-ups</button>
+      <button class="mode-btn active" data-mode="quick" type="button">studio mock-ups</button>
       <button class="mode-btn" data-mode="creative" type="button">creative scenes</button>
+      <button class="mode-btn" data-mode="mine" type="button">my mock-ups</button>
     </nav>
     <button class="secondary theme-btn" id="themeBtn" type="button">theme</button>
     <button class="secondary theme-name-pill" id="themeNameBtn" type="button">Coastal Atelier</button>
@@ -1978,6 +1979,30 @@ input[type=text] {
       </section>
     </section>
 
+    <!-- MY MOCK-UPS MODE -->
+    <section class="mode-panel hidden" id="myMockupsMode">
+      <div style="width:100%;">
+        <div style="width:100%;">
+          <h2 style="margin:0 0 6px;">my mock-ups</h2>
+          <p style="color:var(--muted); font-size:13px; margin:0 0 18px;">import your own mock-up photo, arrange it, and save it as a reusable template — then apply any pattern to it just like a studio mock-up.</p>
+
+          <div class="card-grid" id="myMockupsGrid">
+            <!-- Deliberately NOT .mock-card: that class is also matched by a page-load-time
+                 `document.querySelectorAll('.mock-card').forEach(card => card.querySelector('.select-bubble')...)`
+                 pass elsewhere that assumes every .mock-card has a select bubble; this tile doesn't,
+                 so it gets its own class with equivalent styling inlined instead. -->
+            <article class="add-mockup-tile" id="addMockupTile" style="position:relative; background:var(--panel2); border:2px dashed var(--border); border-radius:28px; padding:14px; min-height:180px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+              <div style="text-align:center;">
+                <div style="font-size:28px;">➕</div>
+                <div style="font-weight:600; margin-top:6px;">add mock-up</div>
+              </div>
+            </article>
+            <!-- saved custom mock-up cards render here via renderMyMockupsGrid() -->
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -2042,6 +2067,25 @@ input[type=text] {
           <label>tassel colour</label>
           <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">the tassel cord is a solid colour in real life — pick whatever coordinates with your pattern.</p>
           <input type="color" id="bookmarkTasselColorInput" value="#ffffff">
+        </div>
+
+        <div id="artworkModeChoiceControls" class="hidden" style="margin-top:14px;">
+          <label>artwork type</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="secondary artwork-mode-choice-btn active" data-choice="repeat" type="button">repeat pattern</button>
+            <button class="secondary artwork-mode-choice-btn" data-choice="single" type="button">single artwork</button>
+          </div>
+        </div>
+
+        <div id="singleArtworkControls" class="hidden" style="margin-top:14px;">
+          <label>artwork (PNG/JPG)</label>
+          <p style="color:var(--muted); font-size:12px; margin:0 0 8px;">upload one graphic — a logo, illustration, quote or poster — to place once instead of tiling a pattern.</p>
+          <input type="file" accept="image/png,image/jpeg,image/webp" id="singleArtworkInput">
+          <label style="margin-top:10px; display:block;">fit</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="secondary single-artwork-fit-btn active" data-fit="contain" type="button">contain</button>
+            <button class="secondary single-artwork-fit-btn" data-fit="cover" type="button">cover</button>
+          </div>
         </div>
 
         <div id="milestoneBlanketControls" class="hidden" style="margin-top:14px;">
@@ -2230,10 +2274,65 @@ input[type=text] {
   </div>
 </aside>
 
+<aside class="preview-overlay hidden" id="myMockupComposerOverlay">
+  <div class="preview-panel" style="max-width:1200px;">
+
+    <div class="preview-stage" style="position:relative;">
+      <div style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:10px;">
+        <h2 id="mmComposerTitle" style="margin:0;">new mock-up</h2>
+      </div>
+      <div id="mmComposerPage" class="mm-composer-page" style="position:relative; width:700px; height:700px; max-width:100%; max-height:62vh; background:#eef0ee repeating-conic-gradient(#e4e6e3 0% 25%, #eef0ee 0% 50%) 50% / 24px 24px; border:1px solid var(--border); overflow:hidden; margin:0 auto;"></div>
+      <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+        <input type="file" id="mmUploadArtworkInput" accept="image/png,image/jpeg,image/webp" style="display:none;">
+        <button class="secondary" id="mmUploadArtworkBtn" type="button">upload artwork</button>
+        <button class="secondary" id="mmAddPatternSlotBtn" type="button">+ add pattern/print area</button>
+        <button class="secondary" id="mmAddTextBtn" type="button">+ add text</button>
+      </div>
+    </div>
+
+    <div class="preview-controls">
+      <h2>layers</h2>
+      <div id="mmLayerList" style="display:flex; flex-direction:column; gap:4px; margin-bottom:14px; max-height:160px; overflow:auto;"></div>
+
+      <div id="mmPatternSlotInspector" class="hidden" style="border-top:1px solid var(--border); padding-top:12px;">
+        <label>shape</label>
+        <select id="mmSlotShapeSelect" style="width:100%; padding:10px; border-radius:40px; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text-primary);">
+          <option value="rect">rectangle</option>
+          <option value="ellipse">ellipse</option>
+        </select>
+        <label style="margin-top:10px; display:block;">artwork mode</label>
+        <select id="mmSlotModeSelect" style="width:100%; padding:10px; border-radius:40px; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text-primary);">
+          <option value="repeat">repeat pattern</option>
+          <option value="single">single artwork</option>
+          <option value="both">both (choose when using)</option>
+        </select>
+        <label style="margin-top:10px; display:block;">blend</label>
+        <select id="mmSlotBlendSelect" style="width:100%; padding:10px; border-radius:40px; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text-primary);">
+          <option value="overlay">overlay (shaded)</option>
+          <option value="multiply">multiply</option>
+          <option value="normal">normal (flat)</option>
+        </select>
+        <input type="file" id="mmSlotMaskInput" accept="image/png" style="display:none;">
+        <button class="secondary" id="mmSlotMaskBtn" type="button" style="width:100%; margin-top:10px;">upload custom mask (optional)</button>
+      </div>
+
+      <button class="secondary" id="mmDeleteLayerBtn" type="button" style="width:100%; margin-top:10px;">delete selected layer</button>
+
+      <div style="border-top:1px solid var(--border); margin-top:16px; padding-top:14px;">
+        <button id="mmSaveMockupBtn" type="button" style="width:100%;">save as mock-up</button>
+        <button class="secondary" id="mmSendToPatternPagesBtn" type="button" style="width:100%; margin-top:8px;" title="coming soon — will use the full suite integration once this ships in the suite shell">send to pattern pages</button>
+        <button class="secondary" id="mmCloseComposerBtn" type="button" style="width:100%; margin-top:8px;">close</button>
+      </div>
+    </div>
+  </div>
+</aside>
+
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script>
 const quickMode = document.getElementById('quickMode');
 const creativeMode = document.getElementById('creativeMode');
+const myMockupsMode = document.getElementById('myMockupsMode');
+const modePanelsByMode = { quick: quickMode, creative: creativeMode, mine: myMockupsMode };
 const modeBtns = document.querySelectorAll('.mode-btn');
 const themeBtn = document.getElementById('themeBtn');
 
@@ -2259,8 +2358,10 @@ modeBtns.forEach(btn => {
     btn.classList.add('active');
 
     const mode = btn.dataset.mode;
-    quickMode.classList.toggle('hidden', mode !== 'quick');
-    creativeMode.classList.toggle('hidden', mode !== 'creative');
+    Object.entries(modePanelsByMode).forEach(([key, panel]) => {
+      if (panel) panel.classList.toggle('hidden', key !== mode);
+    });
+    if (mode === 'mine' && typeof renderMyMockupsGrid === 'function') renderMyMockupsGrid();
   });
 });
 
@@ -3197,6 +3298,138 @@ function boostPatternLayerContrast(layerCanvas, amount = 1.18, saturation = 1.08
   }
 
   ctx.putImageData(imageData, 0, 0);
+}
+
+/* ---------- shared artwork-mode compositor ----------
+   Every mock-up's printable region can be filled one of two ways: a tiled
+   seamless pattern ("repeat", the only mode built-ins have ever used), or
+   one placed piece of artwork sized to fit the region ("single" — a T-shirt
+   graphic, logo, quote, poster). This is the one function that does that
+   fill, given an already-built alpha mask (destination-in target) — it
+   doesn't care whether the mask came from an uploaded product mask image
+   (built-ins) or a composed rect/ellipse patternSlot shape (My Mock-ups),
+   so it's the shared path both are meant to call. Built-in product
+   renderers still inline their own tile+mask+blend today (tracked
+   follow-up to swap them over); My Mock-ups' renderCustomMockupToCanvas
+   calls this from the start. */
+const ARTWORK_MODE_REPEAT = 'repeat';
+const ARTWORK_MODE_SINGLE = 'single';
+const ARTWORK_MODE_BOTH = 'both';
+
+// Every existing built-in defaults to 'repeat' — zero behavior change today.
+// A fast-follow flips individual entries to 'single'/'both' once that
+// product's renderer is retrofitted to call renderArtworkIntoMaskedRegion.
+const PRODUCT_ARTWORK_MODES = {
+  mug: ARTWORK_MODE_REPEAT,
+  notebook: ARTWORK_MODE_REPEAT,
+  tumbler: ARTWORK_MODE_REPEAT,
+  floorcushion: ARTWORK_MODE_REPEAT,
+  applepencil: ARTWORK_MODE_REPEAT,
+  greetingcard: ARTWORK_MODE_REPEAT,
+  bookmark: ARTWORK_MODE_REPEAT,
+  kitchentowel: ARTWORK_MODE_REPEAT,
+  buckethat: ARTWORK_MODE_REPEAT,
+  beachtowel: ARTWORK_MODE_REPEAT,
+  bikiniset: ARTWORK_MODE_REPEAT,
+  swimsuit: ARTWORK_MODE_REPEAT,
+  milestoneblanket: ARTWORK_MODE_REPEAT,
+  milestoneblanketyear: ARTWORK_MODE_REPEAT
+};
+
+// The one function any UI (the Use Mock-up preview panel) queries to decide
+// whether to show the pattern picker, a single-artwork upload, or a choice
+// of both — works identically for a built-in product key or a 'custom:<id>'
+// My Mock-ups key.
+function getArtworkModeForProduct(product, customMockupRecord) {
+  if (typeof product === 'string' && product.startsWith('custom:')) {
+    const record = customMockupRecord || null;
+    const slot = record && record.layers && record.layers.find(l => l.id === record.patternSlotLayerId);
+    return (slot && slot.mode) || ARTWORK_MODE_REPEAT;
+  }
+  return PRODUCT_ARTWORK_MODES[product] || ARTWORK_MODE_REPEAT;
+}
+
+// Standard CSS object-fit-style placement math for a single artwork image
+// inside a w x h box, plus a user zoom/nudge on top.
+function computeSingleArtworkRect(imgW, imgH, boxW, boxH, fit, scalePercent, offsetXPercent, offsetYPercent) {
+  const scale = Math.max(0.1, Number(scalePercent || 100) / 100);
+  const boxAspect = boxW / boxH;
+  const imgAspect = imgW / Math.max(1, imgH);
+  let baseW, baseH;
+  if (fit === 'cover' ? (imgAspect > boxAspect) : (imgAspect < boxAspect)) {
+    baseH = boxH;
+    baseW = boxH * imgAspect;
+  } else {
+    baseW = boxW;
+    baseH = boxW / imgAspect;
+  }
+  const w = baseW * scale;
+  const h = baseH * scale;
+  const x = (boxW - w) / 2 + (Number(offsetXPercent || 0) / 100) * boxW;
+  const y = (boxH - h) / 2 + (Number(offsetYPercent || 0) / 100) * boxH;
+  return { x, y, w, h };
+}
+
+function renderArtworkIntoMaskedRegion(ctx, opts) {
+  const {
+    maskCanvas, w, h,
+    mode = ARTWORK_MODE_REPEAT,
+    blendMode,
+    alpha = 0.90,
+    sheenAlpha = 0.14,
+    patternImg, scalePercent, offsetX = 0, offsetY = 0,
+    artworkImg, fit = 'contain', singleScale = 100, singleOffsetX = 0, singleOffsetY = 0
+  } = opts;
+
+  const layer = document.createElement('canvas');
+  layer.width = w;
+  layer.height = h;
+  const lctx = layer.getContext('2d');
+  lctx.imageSmoothingEnabled = true;
+  lctx.imageSmoothingQuality = 'high';
+
+  if (mode === ARTWORK_MODE_SINGLE) {
+    if (!artworkImg) return false;
+    const iw = artworkImg.naturalWidth || artworkImg.width || 1;
+    const ih = artworkImg.naturalHeight || artworkImg.height || 1;
+    const rect = computeSingleArtworkRect(iw, ih, w, h, fit, singleScale, singleOffsetX, singleOffsetY);
+    lctx.drawImage(artworkImg, rect.x, rect.y, rect.w, rect.h);
+  } else {
+    if (!patternImg) return false;
+    const tile = createPatternTileCanvas(patternImg, scalePercent);
+    // offsetX/offsetY arrive as percent (same convention getEffectiveOffsetForProduct
+    // returns), converted to a tile-relative pixel phase here — matches every
+    // built-in renderer's own offset.x/100*tile.width convention.
+    const offsetXPx = (Number(offsetX) || 0) / 100 * tile.width;
+    const offsetYPx = (Number(offsetY) || 0) / 100 * tile.height;
+    drawRepeatedTileLayer(lctx, tile, w, h, offsetXPx, offsetYPx);
+    boostPatternLayerContrast(layer, 1.10, 1.05);
+  }
+
+  lctx.globalCompositeOperation = 'destination-in';
+  lctx.drawImage(maskCanvas, 0, 0, w, h);
+  lctx.globalCompositeOperation = 'source-over';
+
+  const resolvedBlend = blendMode || (mode === ARTWORK_MODE_SINGLE ? 'normal' : 'overlay');
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.globalCompositeOperation = resolvedBlend === 'normal' ? 'source-over' : resolvedBlend;
+  ctx.drawImage(layer, 0, 0);
+  ctx.restore();
+
+  // Repeat mode gets a light flat sheen pass for extra pop, matching the
+  // established built-in-product recipe; single-artwork placements stay
+  // crisp/true-color, so they skip it.
+  if (mode !== ARTWORK_MODE_SINGLE && sheenAlpha > 0) {
+    ctx.save();
+    ctx.globalAlpha = sheenAlpha;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(layer, 0, 0);
+    ctx.restore();
+  }
+
+  return true;
 }
 
 async function renderMugMockupToCanvas(targetCanvas, options = {}) {
@@ -5041,6 +5274,7 @@ async function renderProductToCanvas(product, targetCanvas) {
   if (product === 'swimsuit') return renderSwimsuitMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'milestoneblanket') return renderMilestoneBlanketMockupToCanvas(targetCanvas, window.__currentProductScale);
   if (product === 'milestoneblanketyear') return renderMilestoneBlanketYearMockupToCanvas(targetCanvas, window.__currentProductScale);
+  if (typeof product === 'string' && product.startsWith('custom:')) return renderCustomMockupToCanvas(targetCanvas, product.slice(7), window.__currentProductScale);
 
   return false;
 }
@@ -5061,7 +5295,28 @@ async function renderQuickCard(product) {
   }
 }
 
+function syncArtworkModeControlsForProduct(product) {
+  const choiceControls = document.getElementById('artworkModeChoiceControls');
+  const singleControls = document.getElementById('singleArtworkControls');
+  if (!choiceControls || !singleControls) return;
+
+  const isCustom = typeof product === 'string' && product.startsWith('custom:');
+  const customCtx = isCustom ? mmCustomRecordCache.get(product.slice(7)) : null;
+  const record = customCtx ? customCtx.record : null;
+  const slot = record ? record.layers.find(l => l.id === record.patternSlotLayerId) : null;
+  const slotMode = isCustom ? ((slot && slot.mode) || ARTWORK_MODE_REPEAT) : getArtworkModeForProduct(product);
+
+  choiceControls.classList.toggle('hidden', slotMode !== ARTWORK_MODE_BOTH);
+  const resolvedChoice = resolveProductArtworkModeChoice(product, slotMode);
+  document.querySelectorAll('.artwork-mode-choice-btn').forEach(b => b.classList.toggle('active', b.dataset.choice === resolvedChoice));
+
+  singleControls.classList.toggle('hidden', resolvedChoice !== ARTWORK_MODE_SINGLE);
+  const fit = (slot && slot.singleFit) || 'contain';
+  document.querySelectorAll('.single-artwork-fit-btn').forEach(b => b.classList.toggle('active', b.dataset.fit === fit));
+}
+
 function syncPreviewControlsForProduct(product) {
+  syncArtworkModeControlsForProduct(product);
   const scaleEl = document.getElementById('previewScale');
   const xEl = document.getElementById('previewX');
   const yEl = document.getElementById('previewY');
@@ -7339,9 +7594,14 @@ document.getElementById('bookmarkTasselColorInput')?.addEventListener('input', e
 document.getElementById('downloadPreviewBtn')?.addEventListener('click', () => {
   const largeCanvas = document.getElementById('largePreviewCanvas');
   if (largeCanvas && !largeCanvas.classList.contains('hidden')) {
-    const filenameBase = currentPreviewScene
+    let filenameBase = currentPreviewScene
       ? currentPreviewScene.replace(/\s+/g, '_')
       : (currentPreviewProduct || 'mockup');
+    if (typeof currentPreviewProduct === 'string' && currentPreviewProduct.startsWith('custom:')) {
+      const ctxData = mmCustomRecordCache.get(currentPreviewProduct.slice(7));
+      const name = ctxData && ctxData.record ? ctxData.record.name : 'my_mockup';
+      filenameBase = name.replace(/\s+/g, '_').replace(/[^a-z0-9_-]/gi, '') || 'my_mockup';
+    }
     downloadCanvasPNG(largeCanvas, filenameBase + '_mockup.png');
   } else if (currentPreviewScene && currentPreviewScene !== 'bedding scene') {
     alert(currentPreviewScene + ' is still a placeholder scene — bedding scene is the first fully working collection showcase.');
@@ -7376,13 +7636,23 @@ const MSTUDIO_IDB_AUTOSAVE_KEY = 'autosave';
    larger and it stores the object directly via structured clone, no
    JSON.stringify needed. localStorage is kept only as a read fallback so a
    save made before this change can still be quick-loaded once. */
+const CUSTOM_MOCKUPS_STORE = 'customMockups';
+const CUSTOM_MOCKUP_ASSETS_STORE = 'customMockupAssets';
+
 function openMstudioDB() {
   return new Promise((resolve, reject) => {
     if (!window.indexedDB) { reject(new Error('IndexedDB unavailable')); return; }
-    const req = indexedDB.open(MSTUDIO_IDB_NAME, 1);
+    const req = indexedDB.open(MSTUDIO_IDB_NAME, 2);
     req.onupgradeneeded = () => {
-      if (!req.result.objectStoreNames.contains(MSTUDIO_IDB_STORE)) {
-        req.result.createObjectStore(MSTUDIO_IDB_STORE);
+      const db = req.result;
+      if (!db.objectStoreNames.contains(MSTUDIO_IDB_STORE)) {
+        db.createObjectStore(MSTUDIO_IDB_STORE);
+      }
+      if (!db.objectStoreNames.contains(CUSTOM_MOCKUPS_STORE)) {
+        db.createObjectStore(CUSTOM_MOCKUPS_STORE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(CUSTOM_MOCKUP_ASSETS_STORE)) {
+        db.createObjectStore(CUSTOM_MOCKUP_ASSETS_STORE, { keyPath: 'key' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -7434,6 +7704,167 @@ async function idbDeleteKey(key) {
 
 function idbSaveProject(data) { return idbSaveProjectToKey(data, MSTUDIO_IDB_KEY); }
 function idbLoadProject() { return idbLoadProjectFromKey(MSTUDIO_IDB_KEY); }
+
+/* ---------- "My Mock-ups" persistence ----------
+   Custom mock-ups get their own two object stores in the same mockupStudioDB
+   (not crammed into the single projectSaves quick-save key): customMockups
+   holds small per-record metadata (one row per saved mock-up), and
+   customMockupAssets holds every image/mask/thumbnail as a real Blob, keyed
+   separately, so listing the library never has to load full-resolution
+   layer images into memory just to render thumbnails. */
+
+function uidCustom(prefix) {
+  return prefix + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
+}
+
+async function saveCustomMockupAsset(blob, mime) {
+  const db = await openMstudioDB();
+  const key = uidCustom('asset');
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(CUSTOM_MOCKUP_ASSETS_STORE, 'readwrite');
+      tx.objectStore(CUSTOM_MOCKUP_ASSETS_STORE).put({ key, blob, mime: mime || blob.type || 'image/png' });
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error || new Error('asset save failed'));
+    });
+  } finally {
+    db.close();
+  }
+  return key;
+}
+
+async function loadCustomMockupAsset(key) {
+  if (!key) return null;
+  const db = await openMstudioDB();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(CUSTOM_MOCKUP_ASSETS_STORE, 'readonly');
+      const req = tx.objectStore(CUSTOM_MOCKUP_ASSETS_STORE).get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error || new Error('asset load failed'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function deleteCustomMockupAsset(key) {
+  if (!key) return;
+  const db = await openMstudioDB();
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(CUSTOM_MOCKUP_ASSETS_STORE, 'readwrite');
+      tx.objectStore(CUSTOM_MOCKUP_ASSETS_STORE).delete(key);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error || new Error('asset delete failed'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function duplicateCustomMockupAssetBlob(key) {
+  if (!key) return null;
+  const asset = await loadCustomMockupAsset(key);
+  if (!asset) return null;
+  return saveCustomMockupAsset(asset.blob, asset.mime);
+}
+
+async function saveCustomMockupRecord(record) {
+  const db = await openMstudioDB();
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(CUSTOM_MOCKUPS_STORE, 'readwrite');
+      tx.objectStore(CUSTOM_MOCKUPS_STORE).put(record);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error || new Error('mock-up save failed'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function listCustomMockupRecords() {
+  const db = await openMstudioDB();
+  try {
+    const records = await new Promise((resolve, reject) => {
+      const tx = db.transaction(CUSTOM_MOCKUPS_STORE, 'readonly');
+      const req = tx.objectStore(CUSTOM_MOCKUPS_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error || new Error('mock-up list failed'));
+    });
+    return records.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  } finally {
+    db.close();
+  }
+}
+
+async function loadCustomMockupRecord(id) {
+  const db = await openMstudioDB();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(CUSTOM_MOCKUPS_STORE, 'readonly');
+      const req = tx.objectStore(CUSTOM_MOCKUPS_STORE).get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error || new Error('mock-up load failed'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+function collectCustomMockupAssetKeys(record) {
+  const keys = [];
+  if (record.thumbnailAssetKey) keys.push(record.thumbnailAssetKey);
+  (record.layers || []).forEach(l => {
+    if (l.assetKey) keys.push(l.assetKey);
+    if (l.maskAssetKey) keys.push(l.maskAssetKey);
+    if (l.singleArtworkAssetKey) keys.push(l.singleArtworkAssetKey);
+  });
+  return keys;
+}
+
+async function deleteCustomMockupRecord(id) {
+  const record = await loadCustomMockupRecord(id);
+  if (record) {
+    for (const key of collectCustomMockupAssetKeys(record)) {
+      await deleteCustomMockupAsset(key);
+    }
+  }
+  const db = await openMstudioDB();
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(CUSTOM_MOCKUPS_STORE, 'readwrite');
+      tx.objectStore(CUSTOM_MOCKUPS_STORE).delete(id);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error || new Error('mock-up delete failed'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function duplicateCustomMockupRecord(id) {
+  const original = await loadCustomMockupRecord(id);
+  if (!original) return null;
+  const clone = JSON.parse(JSON.stringify(original));
+  clone.id = uidCustom('mockup');
+  clone.name = (original.name || 'mock-up') + ' copy';
+  clone.createdAt = new Date().toISOString();
+  clone.updatedAt = clone.createdAt;
+
+  // Re-key every blob asset this record references so deleting the
+  // original can never orphan or corrupt the duplicate's own assets.
+  if (clone.thumbnailAssetKey) clone.thumbnailAssetKey = await duplicateCustomMockupAssetBlob(clone.thumbnailAssetKey);
+  for (const layer of clone.layers || []) {
+    if (layer.assetKey) layer.assetKey = await duplicateCustomMockupAssetBlob(layer.assetKey);
+    if (layer.maskAssetKey) layer.maskAssetKey = await duplicateCustomMockupAssetBlob(layer.maskAssetKey);
+    if (layer.singleArtworkAssetKey) layer.singleArtworkAssetKey = await duplicateCustomMockupAssetBlob(layer.singleArtworkAssetKey);
+  }
+
+  await saveCustomMockupRecord(clone);
+  return clone;
+}
 
 function ilSerializeLookbookItem(item) {
   const base = {
@@ -7916,6 +8347,1029 @@ document.getElementById('projectFileInput')?.addEventListener('change', e => {
 renderQuickCardsSequentially(ALL_QUICK_PRODUCTS);
 
 console.log('Mock-up Studio asset path fix loaded');
+</script>
+
+<script>
+/* ======================================================================
+   MY MOCK-UPS — library grid + card actions
+   ====================================================================== */
+
+const myMockupsGridEl = document.getElementById('myMockupsGrid');
+const addMockupTileEl = document.getElementById('addMockupTile');
+const myMockupObjectUrls = [];
+
+function revokeMyMockupObjectUrls() {
+  while (myMockupObjectUrls.length) {
+    try { URL.revokeObjectURL(myMockupObjectUrls.pop()); } catch (err) {}
+  }
+}
+
+async function renderMyMockupsGrid() {
+  if (!myMockupsGridEl) return;
+  revokeMyMockupObjectUrls();
+  [...myMockupsGridEl.querySelectorAll('.my-mockup-card')].forEach(el => el.remove());
+
+  let records = [];
+  try {
+    records = await listCustomMockupRecords();
+  } catch (err) {
+    console.error('could not list custom mock-ups', err);
+    return;
+  }
+
+  for (const record of records) {
+    const card = document.createElement('article');
+    card.className = 'mock-card my-mockup-card';
+    card.dataset.mockupId = record.id;
+
+    const preview = document.createElement('div');
+    preview.className = 'card-preview';
+    if (record.thumbnailAssetKey) {
+      try {
+        const asset = await loadCustomMockupAsset(record.thumbnailAssetKey);
+        if (asset && asset.blob) {
+          const url = URL.createObjectURL(asset.blob);
+          myMockupObjectUrls.push(url);
+          const img = document.createElement('img');
+          img.src = url;
+          img.style.cssText = 'width:100%; height:100%; object-fit:cover; border-radius:inherit;';
+          preview.appendChild(img);
+        }
+      } catch (err) { console.error('thumbnail load failed', err); }
+    }
+
+    const footer = document.createElement('div');
+    footer.className = 'card-footer';
+    footer.style.flexDirection = 'column';
+    footer.style.alignItems = 'stretch';
+    footer.style.gap = '8px';
+
+    const nameRow = document.createElement('div');
+    nameRow.innerHTML = `<h3 style="margin:0;">${escapeHtml(record.name || 'untitled mock-up')}</h3>`;
+    footer.appendChild(nameRow);
+
+    const actionsRow = document.createElement('div');
+    actionsRow.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px;';
+
+    const makeBtn = (label, onClick, extraStyle) => {
+      const b = document.createElement('button');
+      b.className = 'secondary';
+      b.type = 'button';
+      b.textContent = label;
+      b.style.cssText = 'flex:1; min-width:72px; padding:8px 10px; font-size:12px;' + (extraStyle || '');
+      b.addEventListener('click', e => { e.stopPropagation(); onClick(); });
+      return b;
+    };
+
+    actionsRow.appendChild(makeBtn('open/edit', () => mmOpenComposer(record.id)));
+    actionsRow.appendChild(makeBtn('use mock-up', () => useCustomMockup(record.id)));
+    footer.appendChild(actionsRow);
+
+    const actionsRow2 = document.createElement('div');
+    actionsRow2.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px;';
+    actionsRow2.appendChild(makeBtn('rename', () => renameCustomMockup(record.id)));
+    actionsRow2.appendChild(makeBtn('duplicate', () => duplicateCustomMockupAndRefresh(record.id)));
+    actionsRow2.appendChild(makeBtn('delete', () => deleteCustomMockupAndRefresh(record.id), 'color:#b23b3b;'));
+    footer.appendChild(actionsRow2);
+
+    card.appendChild(preview);
+    card.appendChild(footer);
+    myMockupsGridEl.appendChild(card);
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : String(str);
+  return div.innerHTML;
+}
+
+async function renameCustomMockup(id) {
+  const record = await loadCustomMockupRecord(id);
+  if (!record) return;
+  const next = prompt('rename this mock-up', record.name || '');
+  if (next === null) return;
+  const trimmed = next.trim();
+  if (!trimmed) return;
+  record.name = trimmed;
+  record.updatedAt = new Date().toISOString();
+  await saveCustomMockupRecord(record);
+  await renderMyMockupsGrid();
+}
+
+async function duplicateCustomMockupAndRefresh(id) {
+  await duplicateCustomMockupRecord(id);
+  await renderMyMockupsGrid();
+}
+
+async function deleteCustomMockupAndRefresh(id) {
+  const record = await loadCustomMockupRecord(id);
+  const label = record && record.name ? `"${record.name}"` : 'this mock-up';
+  if (!confirm(`Delete ${label}? This can't be undone.`)) return;
+  await deleteCustomMockupRecord(id);
+  await renderMyMockupsGrid();
+}
+
+if (addMockupTileEl) {
+  addMockupTileEl.addEventListener('click', () => mmOpenComposer(null));
+}
+</script>
+
+<script>
+/* ======================================================================
+   MY MOCK-UPS — composer
+   A parallel, smaller engine to the interactive lookbook's il* functions:
+   same DOM-absolute-position-canvas-item technique and flatten-to-canvas
+   export pattern, but its own data shape (percent x/y/w/h/r, matching the
+   Pattern-Pages-style schema) and its own item types — image, patternSlot
+   (the bridge to the existing pattern-application pipeline), and text.
+   Unlike il*, every item type gets free rotation here, not just
+   pattern-filled ones.
+   ====================================================================== */
+
+const MM_DEFAULT_PAGE_W = 700;
+const MM_DEFAULT_PAGE_H = 700;
+
+let mmCurrentRecordId = null;
+let mmCurrentRecordNameCache = null;
+let mmSelectedItemEl = null;
+let mmSelectedItemId = null;
+let mmZIndexCounter = 1;
+const mmItemMeta = new Map(); // itemId -> { type, assetKey, blob, mime, ...patternSlot-only fields }
+const mmObjectUrls = [];
+
+function mmRevokeObjectUrls() {
+  while (mmObjectUrls.length) { try { URL.revokeObjectURL(mmObjectUrls.pop()); } catch (err) {} }
+}
+
+function mmUid() { return 'item_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8); }
+function mmActivePage() { return document.getElementById('mmComposerPage'); }
+function mmPxToPercent(px, total) { return total ? (px / total) * 100 : 0; }
+function mmPercentToPx(pct, total) { return (Number(pct) || 0) / 100 * total; }
+
+/* ---------- selection ---------- */
+
+function mmSelectItem(item) {
+  if (mmSelectedItemEl) { mmSelectedItemEl.style.outline = 'none'; }
+  mmSelectedItemEl = item;
+  mmSelectedItemId = item.dataset.itemId;
+  item.style.outline = '2px solid #3b82b2';
+  item.style.outlineOffset = '2px';
+  mmSyncInspector();
+  mmRenderLayerList();
+}
+
+function mmDeselectAll() {
+  if (mmSelectedItemEl) mmSelectedItemEl.style.outline = 'none';
+  mmSelectedItemEl = null;
+  mmSelectedItemId = null;
+  mmSyncInspector();
+  mmRenderLayerList();
+}
+
+/* ---------- drag / resize / rotate ----------
+   Same percent-of-parent-rect move/resize math the il* engine uses, plus a
+   free rotate handle on every item type (il*'s rotate is gated to
+   hasPattern image items only — this is the capability gap this composer
+   fills). */
+
+function mmMakeItemDraggable(item) {
+  let dragging = false, startX = 0, startY = 0, origLeft = 0, origTop = 0;
+  function down(e) {
+    if (e.target.classList.contains('item-resize-handle') || e.target.classList.contains('item-rotate-handle') || e.target.classList.contains('item-delete-handle')) return;
+    if (item.classList.contains('mm-text-item')) {
+      const t = item.querySelector('.mm-text-content');
+      if (t && document.activeElement === t) return;
+    }
+    e.preventDefault();
+    mmSelectItem(item);
+    dragging = true;
+    item.style.zIndex = ++mmZIndexCounter;
+    const p = e.touches ? e.touches[0] : e;
+    startX = p.clientX; startY = p.clientY;
+    origLeft = parseFloat(item.style.left) || 0;
+    origTop = parseFloat(item.style.top) || 0;
+    document.addEventListener('mousemove', move);
+    document.addEventListener('touchmove', move, { passive: false });
+    document.addEventListener('mouseup', up);
+    document.addEventListener('touchend', up);
+  }
+  function move(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    const p = e.touches ? e.touches[0] : e;
+    item.style.left = (origLeft + (p.clientX - startX)) + 'px';
+    item.style.top = (origTop + (p.clientY - startY)) + 'px';
+  }
+  function up() {
+    dragging = false;
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('touchmove', move);
+    document.removeEventListener('mouseup', up);
+    document.removeEventListener('touchend', up);
+  }
+  item.addEventListener('mousedown', down);
+  item.addEventListener('touchstart', down, { passive: false });
+}
+
+function mmMakeItemResizable(item, handle) {
+  let resizing = false, startX = 0, startY = 0, startW = 0, startH = 0;
+  function down(e) {
+    e.stopPropagation(); e.preventDefault();
+    mmSelectItem(item);
+    resizing = true;
+    const p = e.touches ? e.touches[0] : e;
+    startX = p.clientX; startY = p.clientY;
+    startW = item.offsetWidth; startH = item.offsetHeight;
+    document.addEventListener('mousemove', move);
+    document.addEventListener('touchmove', move, { passive: false });
+    document.addEventListener('mouseup', up);
+    document.addEventListener('touchend', up);
+  }
+  function move(e) {
+    if (!resizing) return;
+    e.preventDefault();
+    const p = e.touches ? e.touches[0] : e;
+    item.style.width = Math.max(30, startW + (p.clientX - startX)) + 'px';
+    item.style.height = Math.max(30, startH + (p.clientY - startY)) + 'px';
+  }
+  function up() {
+    resizing = false;
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('touchmove', move);
+    document.removeEventListener('mouseup', up);
+    document.removeEventListener('touchend', up);
+  }
+  handle.addEventListener('mousedown', down);
+  handle.addEventListener('touchstart', down, { passive: false });
+}
+
+function mmMakeItemRotatable(item, handle) {
+  let rotating = false, cx = 0, cy = 0, startAngle = 0, startRotate = 0;
+  function down(e) {
+    e.stopPropagation(); e.preventDefault();
+    mmSelectItem(item);
+    rotating = true;
+    const rect = item.getBoundingClientRect();
+    cx = rect.left + rect.width / 2;
+    cy = rect.top + rect.height / 2;
+    const p = e.touches ? e.touches[0] : e;
+    startAngle = Math.atan2(p.clientY - cy, p.clientX - cx) * 180 / Math.PI;
+    startRotate = parseFloat(item.dataset.rotate || 0);
+    document.addEventListener('mousemove', move);
+    document.addEventListener('touchmove', move, { passive: false });
+    document.addEventListener('mouseup', up);
+    document.addEventListener('touchend', up);
+  }
+  function move(e) {
+    if (!rotating) return;
+    e.preventDefault();
+    const p = e.touches ? e.touches[0] : e;
+    const angle = Math.atan2(p.clientY - cy, p.clientX - cx) * 180 / Math.PI;
+    const next = ((startRotate + (angle - startAngle)) % 360 + 360) % 360;
+    item.dataset.rotate = next;
+    item.style.transform = `rotate(${next}deg)`;
+  }
+  function up() {
+    rotating = false;
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('touchmove', move);
+    document.removeEventListener('mouseup', up);
+    document.removeEventListener('touchend', up);
+  }
+  handle.addEventListener('mousedown', down);
+  handle.addEventListener('touchstart', down, { passive: false });
+}
+
+function mmAttachHandles(item) {
+  const del = document.createElement('div');
+  del.className = 'item-delete-handle';
+  del.textContent = '×';
+  del.style.cssText = 'position:absolute; top:-10px; right:-10px; width:22px; height:22px; border-radius:50%; background:#b23b3b; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; z-index:9999; line-height:1;';
+  del.addEventListener('click', e => {
+    e.stopPropagation();
+    mmItemMeta.delete(item.dataset.itemId);
+    item.remove();
+    if (mmSelectedItemId === item.dataset.itemId) mmDeselectAll();
+    mmRenderLayerList();
+  });
+  item.appendChild(del);
+
+  const resize = document.createElement('div');
+  resize.className = 'item-resize-handle';
+  resize.style.cssText = 'position:absolute; bottom:-8px; right:-8px; width:16px; height:16px; border-radius:4px; background:#fff; border:2px solid #333; cursor:nwse-resize; z-index:9999;';
+  item.appendChild(resize);
+  mmMakeItemResizable(item, resize);
+
+  const rotate = document.createElement('div');
+  rotate.className = 'item-rotate-handle';
+  rotate.style.cssText = 'position:absolute; top:-26px; left:50%; transform:translateX(-50%); width:14px; height:14px; border-radius:50%; background:#fff; border:2px solid #333; cursor:grab; z-index:9999;';
+  item.appendChild(rotate);
+  mmMakeItemRotatable(item, rotate);
+}
+
+/* ---------- item factories ---------- */
+
+function mmCreateImageItem({ src, x, y, w, h, rotate, opacity, fit, itemId }) {
+  const item = document.createElement('div');
+  item.className = 'mm-item';
+  item.dataset.type = 'image';
+  item.dataset.itemId = itemId || mmUid();
+  item.dataset.rotate = rotate || 0;
+  item.dataset.fit = fit || 'cover';
+  item.style.cssText = `position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; background-image:url("${src || ''}"); background-size:${fit === 'stretch' ? '100% 100%' : (fit || 'cover')}; background-position:center; background-repeat:no-repeat; opacity:${opacity == null ? 1 : opacity}; transform:rotate(${rotate || 0}deg); cursor:move;`;
+  item.style.zIndex = ++mmZIndexCounter;
+  mmActivePage().appendChild(item);
+  mmAttachHandles(item);
+  mmMakeItemDraggable(item);
+  return item;
+}
+
+function mmCreatePatternSlotItem({ x, y, w, h, rotate, shape, mode, blendMode, itemId }) {
+  const item = document.createElement('div');
+  item.className = 'mm-item mm-pattern-slot';
+  item.dataset.type = 'patternSlot';
+  item.dataset.itemId = itemId || mmUid();
+  item.dataset.rotate = rotate || 0;
+  item.dataset.shape = shape || 'rect';
+  item.dataset.mode = mode || ARTWORK_MODE_REPEAT;
+  item.dataset.blend = blendMode || '';
+  item.style.cssText = `position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; transform:rotate(${rotate || 0}deg); cursor:move; background:repeating-linear-gradient(45deg, rgba(90,140,160,0.18), rgba(90,140,160,0.18) 8px, rgba(90,140,160,0.30) 8px, rgba(90,140,160,0.30) 16px); border:2px dashed #3b82b2; display:flex; align-items:center; justify-content:center; font-size:12px; color:#1f4b63; text-align:center; font-weight:600; box-sizing:border-box;`;
+  item.style.borderRadius = (shape === 'ellipse') ? '50%' : '4px';
+  item.innerHTML = '<span class="mm-slot-label" style="pointer-events:none; background:rgba(255,255,255,0.75); padding:2px 6px; border-radius:4px;">pattern / print area</span>';
+  item.style.zIndex = ++mmZIndexCounter;
+  mmActivePage().appendChild(item);
+  mmAttachHandles(item);
+  mmMakeItemDraggable(item);
+  return item;
+}
+
+function mmCreateTextItem({ x, y, w, h, rotate, text, font, fontSize, color, itemId }) {
+  const item = document.createElement('div');
+  item.className = 'mm-item mm-text-item';
+  item.dataset.type = 'text';
+  item.dataset.itemId = itemId || mmUid();
+  item.dataset.rotate = rotate || 0;
+  item.style.cssText = `position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; transform:rotate(${rotate || 0}deg); cursor:move; display:flex; align-items:center; justify-content:center;`;
+  item.style.zIndex = ++mmZIndexCounter;
+  const content = document.createElement('div');
+  content.className = 'mm-text-content';
+  content.contentEditable = 'true';
+  content.style.cssText = `width:100%; text-align:center; outline:none; font-family:${font || "'Quicksand', sans-serif"}; font-size:${fontSize || 24}px; color:${color || '#222222'};`;
+  content.textContent = text || 'your text';
+  item.appendChild(content);
+  mmActivePage().appendChild(item);
+  mmAttachHandles(item);
+  mmMakeItemDraggable(item);
+  return item;
+}
+
+/* ---------- layer list + inspector ---------- */
+
+function mmRenderLayerList() {
+  const list = document.getElementById('mmLayerList');
+  if (!list) return;
+  list.innerHTML = '';
+  const items = mmActivePage() ? [...mmActivePage().querySelectorAll('.mm-item')] : [];
+  items.forEach(item => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:8px; cursor:pointer; font-size:13px;' + (item.dataset.itemId === mmSelectedItemId ? ' background:rgba(59,130,178,0.15);' : '');
+    row.textContent = item.dataset.type === 'patternSlot' ? '▦ pattern/print area' : item.dataset.type === 'text' ? '🔤 text' : '🖼 image';
+    row.addEventListener('click', () => mmSelectItem(item));
+    list.appendChild(row);
+  });
+  if (!items.length) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'color:var(--muted); font-size:13px;';
+    empty.textContent = 'no layers yet — upload artwork or add a pattern area to begin.';
+    list.appendChild(empty);
+  }
+}
+
+function mmSyncInspector() {
+  const inspector = document.getElementById('mmPatternSlotInspector');
+  const deleteBtn = document.getElementById('mmDeleteLayerBtn');
+  if (!inspector) return;
+  const isSlot = mmSelectedItemEl && mmSelectedItemEl.dataset.type === 'patternSlot';
+  inspector.classList.toggle('hidden', !isSlot);
+  if (deleteBtn) deleteBtn.classList.toggle('hidden', !mmSelectedItemEl);
+  if (isSlot) {
+    document.getElementById('mmSlotShapeSelect').value = mmSelectedItemEl.dataset.shape || 'rect';
+    document.getElementById('mmSlotModeSelect').value = mmSelectedItemEl.dataset.mode || ARTWORK_MODE_REPEAT;
+    document.getElementById('mmSlotBlendSelect').value = mmSelectedItemEl.dataset.blend || '';
+  }
+}
+
+document.getElementById('mmSlotShapeSelect')?.addEventListener('change', e => {
+  if (!mmSelectedItemEl) return;
+  mmSelectedItemEl.dataset.shape = e.target.value;
+  mmSelectedItemEl.style.borderRadius = e.target.value === 'ellipse' ? '50%' : '4px';
+});
+document.getElementById('mmSlotModeSelect')?.addEventListener('change', e => {
+  if (mmSelectedItemEl) mmSelectedItemEl.dataset.mode = e.target.value;
+});
+document.getElementById('mmSlotBlendSelect')?.addEventListener('change', e => {
+  if (mmSelectedItemEl) mmSelectedItemEl.dataset.blend = e.target.value;
+});
+document.getElementById('mmSlotMaskBtn')?.addEventListener('click', () => {
+  document.getElementById('mmSlotMaskInput').click();
+});
+document.getElementById('mmSlotMaskInput')?.addEventListener('change', e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file || !mmSelectedItemEl) return;
+  const meta = mmItemMeta.get(mmSelectedItemEl.dataset.itemId);
+  if (meta) { meta.maskBlob = file; meta.maskMime = file.type; meta.maskAssetKey = null; }
+  showToastMessage('custom mask attached — save to keep it');
+});
+
+/* ---------- toolbar ---------- */
+
+document.getElementById('mmUploadArtworkBtn')?.addEventListener('click', () => {
+  document.getElementById('mmUploadArtworkInput').click();
+});
+document.getElementById('mmUploadArtworkInput')?.addEventListener('change', e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const src = URL.createObjectURL(file);
+  mmObjectUrls.push(src);
+  const page = mmActivePage();
+  const pw = page.offsetWidth, ph = page.offsetHeight;
+  const img = new Image();
+  img.onload = () => {
+    const boxW = pw * 0.8;
+    const boxH = Math.min(ph * 0.8, boxW * (img.naturalHeight / img.naturalWidth));
+    const item = mmCreateImageItem({ src, x: (pw - boxW) / 2, y: (ph - boxH) / 2, w: boxW, h: boxH, rotate: 0, opacity: 1, fit: 'cover' });
+    mmItemMeta.set(item.dataset.itemId, { type: 'image', assetKey: null, blob: file, mime: file.type });
+    mmSelectItem(item);
+  };
+  img.src = src;
+});
+
+document.getElementById('mmAddPatternSlotBtn')?.addEventListener('click', () => {
+  const page = mmActivePage();
+  const pw = page.offsetWidth, ph = page.offsetHeight;
+  const w = pw * 0.5, h = ph * 0.5;
+  const item = mmCreatePatternSlotItem({ x: (pw - w) / 2, y: (ph - h) / 2, w, h, rotate: 0, shape: 'rect', mode: ARTWORK_MODE_REPEAT, blendMode: '' });
+  mmItemMeta.set(item.dataset.itemId, { type: 'patternSlot', maskAssetKey: null, maskBlob: null, maskMime: null, singleArtworkAssetKey: null, singleBlob: null, singleMime: null, singleFit: 'contain', singleScale: 100, singleOffsetX: 0, singleOffsetY: 0 });
+  mmSelectItem(item);
+});
+
+document.getElementById('mmAddTextBtn')?.addEventListener('click', () => {
+  const page = mmActivePage();
+  const pw = page.offsetWidth, ph = page.offsetHeight;
+  const w = pw * 0.5, h = 50;
+  const item = mmCreateTextItem({ x: (pw - w) / 2, y: (ph - h) / 2, w, h, rotate: 0, text: 'your text', font: "'Quicksand', sans-serif", fontSize: 24, color: '#222222' });
+  mmSelectItem(item);
+});
+
+document.getElementById('mmDeleteLayerBtn')?.addEventListener('click', () => {
+  if (!mmSelectedItemEl) return;
+  mmItemMeta.delete(mmSelectedItemEl.dataset.itemId);
+  mmSelectedItemEl.remove();
+  mmDeselectAll();
+});
+
+document.getElementById('mmCloseComposerBtn')?.addEventListener('click', () => mmCloseComposer());
+document.getElementById('mmSendToPatternPagesBtn')?.addEventListener('click', () => {
+  showToastMessage('sending to Pattern Pages is coming soon — this will use the full suite integration once this ships there.');
+});
+
+/* ---------- open / close ---------- */
+
+async function mmRestoreLayer(layer, page) {
+  const x = mmPercentToPx(layer.x, page.w);
+  const y = mmPercentToPx(layer.y, page.h);
+  const w = mmPercentToPx(layer.w, page.w);
+  const h = mmPercentToPx(layer.h, page.h);
+
+  if (layer.type === 'image') {
+    let src = '';
+    if (layer.assetKey) {
+      const asset = await loadCustomMockupAsset(layer.assetKey);
+      if (asset && asset.blob) { src = URL.createObjectURL(asset.blob); mmObjectUrls.push(src); }
+    }
+    const item = mmCreateImageItem({ src, x, y, w, h, rotate: layer.r, opacity: layer.opacity, fit: layer.fit, itemId: layer.id });
+    mmItemMeta.set(item.dataset.itemId, { type: 'image', assetKey: layer.assetKey || null, blob: null, mime: null });
+  } else if (layer.type === 'patternSlot') {
+    const item = mmCreatePatternSlotItem({ x, y, w, h, rotate: layer.r, shape: layer.shape, mode: layer.mode, blendMode: layer.blendMode, itemId: layer.id });
+    mmItemMeta.set(item.dataset.itemId, {
+      type: 'patternSlot',
+      maskAssetKey: layer.maskAssetKey || null, maskBlob: null, maskMime: null,
+      singleArtworkAssetKey: layer.singleArtworkAssetKey || null, singleBlob: null, singleMime: null,
+      singleFit: layer.singleFit || 'contain',
+      singleScale: layer.singleScale != null ? layer.singleScale : 100,
+      singleOffsetX: layer.singleOffsetX || 0,
+      singleOffsetY: layer.singleOffsetY || 0
+    });
+  } else if (layer.type === 'text') {
+    mmCreateTextItem({ x, y, w, h, rotate: layer.r, text: layer.text, font: layer.font, fontSize: layer.fontSize, color: layer.color, itemId: layer.id });
+  }
+}
+
+async function mmOpenComposer(recordId) {
+  mmRevokeObjectUrls();
+  mmItemMeta.clear();
+  mmSelectedItemEl = null;
+  mmSelectedItemId = null;
+  mmZIndexCounter = 1;
+  const page = mmActivePage();
+  page.innerHTML = '';
+
+  if (recordId) {
+    const record = await loadCustomMockupRecord(recordId);
+    if (!record) { alert('could not open that mock-up.'); return; }
+    mmCurrentRecordId = record.id;
+    mmCurrentRecordNameCache = record.name;
+    document.getElementById('mmComposerTitle').textContent = record.name || 'mock-up';
+    page.style.width = record.page.w + 'px';
+    page.style.height = record.page.h + 'px';
+    for (const layer of record.layers) {
+      await mmRestoreLayer(layer, record.page);
+    }
+  } else {
+    mmCurrentRecordId = null;
+    mmCurrentRecordNameCache = null;
+    document.getElementById('mmComposerTitle').textContent = 'new mock-up';
+    page.style.width = MM_DEFAULT_PAGE_W + 'px';
+    page.style.height = MM_DEFAULT_PAGE_H + 'px';
+  }
+
+  mmSyncInspector();
+  mmRenderLayerList();
+  document.getElementById('myMockupComposerOverlay').classList.remove('hidden');
+}
+
+function mmCloseComposer() {
+  document.getElementById('myMockupComposerOverlay').classList.add('hidden');
+  mmRevokeObjectUrls();
+}
+
+/* ---------- serialize / save ---------- */
+
+function mmSerializeItem(item, page) {
+  const pw = page.offsetWidth, ph = page.offsetHeight;
+  const left = parseFloat(item.style.left) || 0;
+  const top = parseFloat(item.style.top) || 0;
+  const w = item.offsetWidth;
+  const h = item.offsetHeight;
+  const base = {
+    id: item.dataset.itemId,
+    type: item.dataset.type,
+    x: mmPxToPercent(left, pw),
+    y: mmPxToPercent(top, ph),
+    w: mmPxToPercent(w, pw),
+    h: mmPxToPercent(h, ph),
+    r: parseFloat(item.dataset.rotate || 0),
+    opacity: item.style.opacity === '' ? 1 : parseFloat(item.style.opacity)
+  };
+  const meta = mmItemMeta.get(item.dataset.itemId) || {};
+  if (item.dataset.type === 'image') {
+    return Object.assign(base, { assetKey: meta.assetKey || null, fit: item.dataset.fit || 'cover' });
+  }
+  if (item.dataset.type === 'patternSlot') {
+    return Object.assign(base, {
+      shape: item.dataset.shape || 'rect',
+      mode: item.dataset.mode || ARTWORK_MODE_REPEAT,
+      blendMode: item.dataset.blend || '',
+      maskAssetKey: meta.maskAssetKey || null,
+      singleArtworkAssetKey: meta.singleArtworkAssetKey || null,
+      singleFit: meta.singleFit || 'contain',
+      singleScale: meta.singleScale != null ? meta.singleScale : 100,
+      singleOffsetX: meta.singleOffsetX || 0,
+      singleOffsetY: meta.singleOffsetY || 0
+    });
+  }
+  if (item.dataset.type === 'text') {
+    const content = item.querySelector('.mm-text-content');
+    return Object.assign(base, {
+      text: content ? content.textContent : '',
+      font: content ? content.style.fontFamily : "'Quicksand', sans-serif",
+      fontSize: content ? parseFloat(content.style.fontSize) : 24,
+      color: content ? content.style.color : '#222222'
+    });
+  }
+  return base;
+}
+
+async function mmLoadImageFromBlobOrKey(blob, assetKey) {
+  let srcBlob = blob;
+  if (!srcBlob && assetKey) {
+    const asset = await loadCustomMockupAsset(assetKey);
+    srcBlob = asset ? asset.blob : null;
+  }
+  if (!srcBlob) return null;
+  const url = URL.createObjectURL(srcBlob);
+  try {
+    return await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('image decode failed'));
+      img.src = url;
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function mmThumbnailPatternSlotFill(ctx, layer, bounds) {
+  ctx.save();
+  ctx.translate(bounds.x + bounds.w / 2, bounds.y + bounds.h / 2);
+  ctx.rotate((layer.r || 0) * Math.PI / 180);
+  ctx.translate(-bounds.w / 2, -bounds.h / 2);
+  ctx.fillStyle = 'rgba(120,160,180,0.35)';
+  if (layer.shape === 'ellipse') {
+    ctx.beginPath();
+    ctx.ellipse(bounds.w / 2, bounds.h / 2, bounds.w / 2, bounds.h / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.fillRect(0, 0, bounds.w, bounds.h);
+  }
+  ctx.restore();
+}
+
+// Shared flatten step used by both the save-time thumbnail and
+// renderCustomMockupToCanvas (the real "Use Mock-up" renderer) — only one
+// implementation of "draw every non-patternSlot layer in z-order,
+// respecting rotation/opacity/fit", per the plan.
+async function flattenCustomMockupLayers(ctx, record, opts) {
+  opts = opts || {};
+  const { w, h } = record.page;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+
+  for (const layer of record.layers) {
+    const x = mmPercentToPx(layer.x, w);
+    const y = mmPercentToPx(layer.y, h);
+    const lw = mmPercentToPx(layer.w, w);
+    const lh = mmPercentToPx(layer.h, h);
+    const r = layer.r || 0;
+
+    if (layer.type === 'patternSlot') {
+      if (opts.onPatternSlot) await opts.onPatternSlot(layer, { x, y, w: lw, h: lh, r });
+      continue;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = layer.opacity == null ? 1 : layer.opacity;
+    ctx.translate(x + lw / 2, y + lh / 2);
+    ctx.rotate(r * Math.PI / 180);
+    ctx.translate(-lw / 2, -lh / 2);
+
+    if (layer.type === 'image') {
+      const img = opts.imagesByLayerId && opts.imagesByLayerId[layer.id];
+      if (img) {
+        const fit = layer.fit || 'cover';
+        if (fit === 'stretch') {
+          ctx.drawImage(img, 0, 0, lw, lh);
+        } else {
+          const rect = computeSingleArtworkRect(img.naturalWidth || img.width, img.naturalHeight || img.height, lw, lh, fit, 100, 0, 0);
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, 0, lw, lh);
+          ctx.clip();
+          ctx.drawImage(img, rect.x, rect.y, rect.w, rect.h);
+          ctx.restore();
+        }
+      }
+    } else if (layer.type === 'text') {
+      ctx.fillStyle = layer.color || '#222222';
+      ctx.font = `${layer.fontSize || 24}px ${layer.font || "'Quicksand', sans-serif"}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(layer.text || '', lw / 2, lh / 2);
+    }
+
+    ctx.restore();
+  }
+}
+
+async function mmSaveAsMockup() {
+  const page = mmActivePage();
+  const items = [...page.querySelectorAll('.mm-item')];
+  if (!items.length) { alert('add at least one layer before saving.'); return; }
+
+  const isNew = !mmCurrentRecordId;
+  let name = mmCurrentRecordNameCache;
+  if (isNew) {
+    name = prompt('name this mock-up', 'my mock-up');
+    if (!name) return;
+    name = name.trim();
+    if (!name) return;
+  }
+
+  const id = mmCurrentRecordId || uidCustom('mockup');
+  const now = new Date().toISOString();
+  const existingRecord = mmCurrentRecordId ? await loadCustomMockupRecord(mmCurrentRecordId) : null;
+  const pageSize = { w: page.offsetWidth, h: page.offsetHeight };
+
+  const layers = [];
+  for (const item of items) {
+    const meta = mmItemMeta.get(item.dataset.itemId) || {};
+    if (item.dataset.type === 'image' && meta.blob) {
+      meta.assetKey = await saveCustomMockupAsset(meta.blob, meta.mime);
+      meta.blob = null;
+    }
+    if (item.dataset.type === 'patternSlot') {
+      if (meta.maskBlob) { meta.maskAssetKey = await saveCustomMockupAsset(meta.maskBlob, meta.maskMime); meta.maskBlob = null; }
+      if (meta.singleBlob) { meta.singleArtworkAssetKey = await saveCustomMockupAsset(meta.singleBlob, meta.singleMime); meta.singleBlob = null; }
+    }
+    layers.push(mmSerializeItem(item, page));
+  }
+
+  const patternSlotLayer = layers.find(l => l.type === 'patternSlot');
+
+  const record = {
+    id,
+    name: existingRecord ? existingRecord.name : name,
+    createdAt: existingRecord ? existingRecord.createdAt : now,
+    updatedAt: now,
+    page: pageSize,
+    layers,
+    patternSlotLayerId: patternSlotLayer ? patternSlotLayer.id : null,
+    thumbnailAssetKey: existingRecord ? existingRecord.thumbnailAssetKey : null,
+    lastPatternScale: existingRecord ? existingRecord.lastPatternScale : null,
+    lastPatternOffset: existingRecord ? existingRecord.lastPatternOffset : null
+  };
+
+  const imagesByLayerId = {};
+  for (const item of items) {
+    if (item.dataset.type !== 'image') continue;
+    const meta = mmItemMeta.get(item.dataset.itemId) || {};
+    const img = await mmLoadImageFromBlobOrKey(null, meta.assetKey);
+    if (img) imagesByLayerId[item.dataset.itemId] = img;
+  }
+
+  const thumbCanvas = document.createElement('canvas');
+  const thumbScale = Math.min(1, 480 / Math.max(record.page.w, record.page.h, 1));
+  thumbCanvas.width = Math.max(1, Math.round(record.page.w * thumbScale));
+  thumbCanvas.height = Math.max(1, Math.round(record.page.h * thumbScale));
+  const tctx = thumbCanvas.getContext('2d');
+  tctx.scale(thumbScale, thumbScale);
+  await flattenCustomMockupLayers(tctx, record, {
+    imagesByLayerId,
+    onPatternSlot: (layer, bounds) => mmThumbnailPatternSlotFill(tctx, layer, bounds)
+  });
+
+  const thumbBlob = await new Promise(resolve => thumbCanvas.toBlob(resolve, 'image/png'));
+  if (thumbBlob) {
+    if (record.thumbnailAssetKey) await deleteCustomMockupAsset(record.thumbnailAssetKey);
+    record.thumbnailAssetKey = await saveCustomMockupAsset(thumbBlob, 'image/png');
+  }
+
+  await saveCustomMockupRecord(record);
+  mmCurrentRecordId = record.id;
+  mmCurrentRecordNameCache = record.name;
+  document.getElementById('mmComposerTitle').textContent = record.name;
+  showToastMessage('mock-up saved');
+  await renderMyMockupsGrid();
+}
+
+document.getElementById('mmSaveMockupBtn')?.addEventListener('click', () => {
+  mmSaveAsMockup().catch(err => {
+    console.error(err);
+    alert('could not save this mock-up: ' + (err && err.message ? err.message : err));
+  });
+});
+</script>
+
+<script>
+/* ======================================================================
+   MY MOCK-UPS — "Use Mock-up" pattern-application bridge
+   Loads a saved CustomMockupRecord, flattens its static layers, and fills
+   the primary patternSlot layer via the shared renderArtworkIntoMaskedRegion
+   compositor — reusing the exact same preview sliders/download button every
+   built-in product already uses (currentPreviewProduct is just set to the
+   synthetic 'custom:<id>' key; no slider/download code changes needed).
+   ====================================================================== */
+
+const mmCustomRecordCache = new Map(); // mockupId -> { record, images, patternSlotMaskImg, singleArtworkImg }
+const mmPendingSingleArtworkImg = new Map(); // mockupId -> Image (this-session-only upload, not yet saved to the record)
+const mmPendingSingleArtworkBlob = new Map(); // mockupId -> { blob, mime } (persisted back into the record on next interaction)
+
+function resolveProductArtworkModeChoice(product, slotMode) {
+  if (slotMode !== ARTWORK_MODE_BOTH) return slotMode;
+  const override = productOverrides[product];
+  return (override && override.artworkModeChoice) || ARTWORK_MODE_REPEAT;
+}
+
+async function loadCustomMockupRenderContext(mockupId, forceReload) {
+  if (!forceReload && mmCustomRecordCache.has(mockupId)) return mmCustomRecordCache.get(mockupId);
+  const record = await loadCustomMockupRecord(mockupId);
+  if (!record) return null;
+
+  const images = {};
+  for (const layer of record.layers) {
+    if (layer.type === 'image' && layer.assetKey) {
+      const img = await mmLoadImageFromBlobOrKey(null, layer.assetKey);
+      if (img) images[layer.id] = img;
+    }
+  }
+
+  const slot = record.layers.find(l => l.id === record.patternSlotLayerId);
+  let patternSlotMaskImg = null;
+  let singleArtworkImg = null;
+  if (slot && slot.maskAssetKey) patternSlotMaskImg = await mmLoadImageFromBlobOrKey(null, slot.maskAssetKey);
+  if (slot && slot.singleArtworkAssetKey) singleArtworkImg = await mmLoadImageFromBlobOrKey(null, slot.singleArtworkAssetKey);
+
+  const ctxData = { record, images, patternSlotMaskImg, singleArtworkImg };
+  mmCustomRecordCache.set(mockupId, ctxData);
+  return ctxData;
+}
+
+// Rasterizes a patternSlot layer's rotated rect/ellipse bounds (or, if the
+// author uploaded a custom mask, that mask stretched into the same bounds)
+// into a full-canvas-size alpha mask, ready for destination-in.
+function buildPatternSlotMaskCanvas(w, h, slotLayer, maskImg) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const x = mmPercentToPx(slotLayer.x, w);
+  const y = mmPercentToPx(slotLayer.y, h);
+  const lw = mmPercentToPx(slotLayer.w, w);
+  const lh = mmPercentToPx(slotLayer.h, h);
+  const r = (slotLayer.r || 0) * Math.PI / 180;
+
+  ctx.save();
+  ctx.translate(x + lw / 2, y + lh / 2);
+  ctx.rotate(r);
+  ctx.translate(-lw / 2, -lh / 2);
+
+  if (maskImg) {
+    const alphaMask = createAlphaMaskFromBlackWhiteMask(maskImg, Math.max(1, Math.round(lw)), Math.max(1, Math.round(lh)));
+    ctx.drawImage(alphaMask, 0, 0, lw, lh);
+  } else if (slotLayer.shape === 'ellipse') {
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(lw / 2, lh / 2, lw / 2, lh / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, lw, lh);
+  }
+  ctx.restore();
+  return canvas;
+}
+
+async function renderCustomMockupToCanvas(targetCanvas, mockupId, forcedScalePercent) {
+  const ctxData = await loadCustomMockupRenderContext(mockupId);
+  if (!ctxData) return false;
+  const { record, images, patternSlotMaskImg, singleArtworkImg } = ctxData;
+  const product = 'custom:' + mockupId;
+
+  targetCanvas.width = record.page.w;
+  targetCanvas.height = record.page.h;
+  const ctx = targetCanvas.getContext('2d');
+
+  await flattenCustomMockupLayers(ctx, record, {
+    imagesByLayerId: images,
+    onPatternSlot: (layer, bounds) => {
+      if (layer.id !== record.patternSlotLayerId) return; // v1: only the primary slot gets pattern/artwork treatment
+      const maskCanvas = buildPatternSlotMaskCanvas(record.page.w, record.page.h, layer, patternSlotMaskImg);
+      const chosenMode = resolveProductArtworkModeChoice(product, layer.mode || ARTWORK_MODE_REPEAT);
+      const scalePercent = forcedScalePercent || getEffectiveScaleForProduct(product);
+      const offset = getEffectiveOffsetForProduct(product);
+
+      if (chosenMode === ARTWORK_MODE_SINGLE) {
+        const artworkImg = mmPendingSingleArtworkImg.get(mockupId) || singleArtworkImg;
+        renderArtworkIntoMaskedRegion(ctx, {
+          maskCanvas, w: record.page.w, h: record.page.h,
+          mode: ARTWORK_MODE_SINGLE,
+          blendMode: layer.blendMode || 'normal',
+          artworkImg,
+          fit: layer.singleFit || 'contain',
+          singleScale: scalePercent,
+          singleOffsetX: offset.x,
+          singleOffsetY: offset.y
+        });
+      } else {
+        const patternImg = getEffectivePatternForProduct(product);
+        renderArtworkIntoMaskedRegion(ctx, {
+          maskCanvas, w: record.page.w, h: record.page.h,
+          mode: ARTWORK_MODE_REPEAT,
+          blendMode: layer.blendMode || 'overlay',
+          patternImg,
+          scalePercent,
+          offsetX: offset.x,
+          offsetY: offset.y
+        });
+      }
+    }
+  });
+
+  return true;
+}
+
+async function useCustomMockup(mockupId) {
+  const ctxData = await loadCustomMockupRenderContext(mockupId, true); // fresh load in case it was just edited
+  if (!ctxData) { showToastMessage('could not open that mock-up'); return; }
+
+  // Replicates what the built-in .preview-btn click handler does (bypassed
+  // here since there's no card/data-name to click through) — open the
+  // overlay in "quick" mode, not "creative" mode.
+  if (previewTitle) previewTitle.textContent = ctxData.record.name || 'my mock-up';
+  if (previewOverlay) previewOverlay.classList.remove('hidden');
+  quickControls?.classList.remove('hidden');
+  creativePatternControls?.classList.add('hidden');
+  creativeColorControls?.classList.add('hidden');
+  beddingZoneControls?.classList.add('hidden');
+
+  // Hide every built-in product-specific panel — Use Mock-up bypasses the
+  // name-matching card-click switch that normally does this.
+  ['notebookSideControls', 'greetingCardModeControls', 'bikiniLiningControls', 'swimsuitLiningControls', 'bookmarkTasselControls', 'milestoneBlanketControls', 'milestoneYearControls']
+    .forEach(id => document.getElementById(id)?.classList.add('hidden'));
+
+  currentPreviewScene = '';
+  currentPreviewProduct = 'custom:' + mockupId;
+
+  // Seed this session's placement from the record's last-used scale/offset
+  // (if this is the first time it's been opened this session) so a saved
+  // mock-up reopens where the user left it, not at the global defaults.
+  if (!productOverrides[currentPreviewProduct] && (ctxData.record.lastPatternScale != null || ctxData.record.lastPatternOffset)) {
+    productOverrides[currentPreviewProduct] = {
+      scale: ctxData.record.lastPatternScale != null ? ctxData.record.lastPatternScale : undefined,
+      x: ctxData.record.lastPatternOffset ? ctxData.record.lastPatternOffset.x : undefined,
+      y: ctxData.record.lastPatternOffset ? ctxData.record.lastPatternOffset.y : undefined
+    };
+  }
+
+  openProductPreview(currentPreviewProduct);
+}
+
+document.querySelectorAll('.artwork-mode-choice-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (!currentPreviewProduct) return;
+    productOverrides[currentPreviewProduct] = productOverrides[currentPreviewProduct] || {};
+    productOverrides[currentPreviewProduct].artworkModeChoice = btn.dataset.choice;
+    document.querySelectorAll('.artwork-mode-choice-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    syncArtworkModeControlsForProduct(currentPreviewProduct);
+    refreshCurrentPreviewRender();
+  });
+});
+
+document.querySelectorAll('.single-artwork-fit-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (!currentPreviewProduct || !currentPreviewProduct.startsWith('custom:')) return;
+    const mockupId = currentPreviewProduct.slice(7);
+    const ctxData = await loadCustomMockupRenderContext(mockupId);
+    if (!ctxData) return;
+    const slot = ctxData.record.layers.find(l => l.id === ctxData.record.patternSlotLayerId);
+    if (!slot) return;
+    slot.singleFit = btn.dataset.fit;
+    await saveCustomMockupRecord(ctxData.record);
+    document.querySelectorAll('.single-artwork-fit-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    refreshCurrentPreviewRender();
+  });
+});
+
+document.getElementById('singleArtworkInput')?.addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file || !currentPreviewProduct || !currentPreviewProduct.startsWith('custom:')) return;
+  const mockupId = currentPreviewProduct.slice(7);
+  const img = await mmLoadImageFromBlobOrKey(file, null);
+  if (!img) { showToastMessage('could not read that image'); return; }
+  mmPendingSingleArtworkImg.set(mockupId, img);
+  mmPendingSingleArtworkBlob.set(mockupId, { blob: file, mime: file.type });
+
+  // Persist immediately so the artwork survives a reload, not just this session.
+  const ctxData = await loadCustomMockupRenderContext(mockupId);
+  if (ctxData) {
+    const slot = ctxData.record.layers.find(l => l.id === ctxData.record.patternSlotLayerId);
+    if (slot) {
+      if (slot.singleArtworkAssetKey) await deleteCustomMockupAsset(slot.singleArtworkAssetKey);
+      slot.singleArtworkAssetKey = await saveCustomMockupAsset(file, file.type);
+      await saveCustomMockupRecord(ctxData.record);
+      ctxData.singleArtworkImg = img;
+    }
+  }
+  refreshCurrentPreviewRender();
+});
+
+// Persist placement (scale/x/y) back onto the saved record too, not just
+// the in-memory productOverrides, so a user's last placement survives a
+// full reload — mirrors lastPatternScale/lastPatternOffset in the plan.
+let mmPlacementPersistTimer = null;
+['previewScale', 'previewX', 'previewY'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', () => {
+    if (!currentPreviewProduct || !currentPreviewProduct.startsWith('custom:')) return;
+    const mockupId = currentPreviewProduct.slice(7);
+    clearTimeout(mmPlacementPersistTimer);
+    mmPlacementPersistTimer = setTimeout(async () => {
+      const record = await loadCustomMockupRecord(mockupId);
+      if (!record) return;
+      const override = productOverrides[currentPreviewProduct] || {};
+      record.lastPatternScale = override.scale != null ? override.scale : record.lastPatternScale;
+      record.lastPatternOffset = { x: override.x || 0, y: override.y || 0 };
+      record.updatedAt = new Date().toISOString();
+      await saveCustomMockupRecord(record);
+    }, 400);
+  });
+});
 </script>
 </body>
 </html>
